@@ -43,11 +43,11 @@ with col1:
     if st.button("1번 낚시"):
         fish = random.choices(fish_list, weights=fish_weights, k=1)[0]
         st.session_state.inventory.append(fish)
-        st.success(f"{fish} 낚았다!")
+        st.success(f"{fish} 을/를 낚았다!")
     if st.button("2번 낚시"):
         fish = random.choices(fish_list, weights=fish_weights, k=2)
         st.session_state.inventory.extend(fish)
-        st.success(f"{', '.join(fish)} 낚았다!")
+        st.success(f"{', '.join(fish)} 을/를 낚았다!")
 
 # --- 인벤토리 ---
 with col2:
