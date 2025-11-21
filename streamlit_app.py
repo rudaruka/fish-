@@ -33,7 +33,7 @@ for base, fused in fusion_map.items():
 
 # ================= UI =================
 st.title("🎣 낚시터! ")
-st.divider("[나랑 낚시할레?]")
+st.divider("나랑 낚시할레?")
 
 col1, col2, col3 = st.columns(3)
 
