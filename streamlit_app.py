@@ -32,8 +32,8 @@ for base, fused in fusion_map.items():
     price_map[fused] = price_map[base] * 2
 
 # ================= UI =================
-st.title("🎣 낚시 + 상점 + 합성")
-st.divider()
+st.title("🎣 낚시터! ")
+st.divider("[나랑 낚시할레?]")
 
 col1, col2, col3 = st.columns(3)
 
