@@ -4,14 +4,14 @@ import random
 # ================= 페이지 설정 =================
 st.set_page_config(page_title="🎣 낚시 게임", page_icon="🎣")
 
-# ================= 세션 상태 초기화 =================
+# ================= 세션 상태 안전 초기화 =================
 if "coin" not in st.session_state:
     st.session_state.coin = 0
 
 if "inventory" not in st.session_state:
     st.session_state.inventory = []
 
-if "items" not in st.session_state:
+if "items" not in st.session_state or not isinstance(st.session_state.items, dict):
     st.session_state.items = {"행운 미끼": 1}  # 아이템 예시
 
 if "shop_open" not in st.session_state:
@@ -29,7 +29,6 @@ fish_list = [
     "가오리","상어","문어","발광오징어","킹크랩","전복"
 ]
 
-# 물고기 뽑기 확률 (가중치)
 weights = [
     20,20,15,15,15,15,15,10,10,10,
     10,10,8,8,8,7,7,7,7,6,
