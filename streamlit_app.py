@@ -8,7 +8,8 @@ if "inventory" not in st.session_state:
     st.session_state.inventory = []
 if "shop_open" not in st.session_state:
     st.session_state.shop_open = False
-if "items" not in st.session_state:
+# items가 없거나 dict가 아니면 초기화
+if "items" not in st.session_state or not isinstance(st.session_state.items, dict):
     st.session_state.items = {}
 
 # ================= 물고기 & 가격 =================
@@ -41,7 +42,8 @@ col1, col2, col3 = st.columns(3)
 # --- 낚시 ---
 with col1:
     st.subheader("🎣 낚시하기")
-    luck_multiplier = 2 if st.session_state.items.get("행운 미끼",0) > 0 else 1
+    # 안전하게 아이템 갯수 확인
+    luck_multiplier = 2 if st.session_state.items.get("행운 미끼", 0) > 0 else 1
     fish_weights_modified = [w*luck_multiplier for w in fish_weights]
 
     if st.button("1번 낚시"):
@@ -82,6 +84,7 @@ if st.session_state.shop_open:
                 st.success(f"{selected} 판매 완료! +{price} 코인")
         else:
             st.warning("팔 물고기가 없습니다!")
+
     else:  # 아이템 거래
         action = st.radio("구매/판매", ["구매", "판매"], key="item_action_radio")
         selected_item = st.selectbox("아이템 선택", list(items_price.keys()), key="item_select_box")
