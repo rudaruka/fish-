@@ -43,8 +43,8 @@ price_map = {
     "상어": 120, "문어": 120, "발광오징어": 120, "킹크랩": 120, "전복": 120
 }
 
-st.title("🎣 낚시 게임 (Streamlit Edition)")
-st.write("조금 더 예쁘게 만든 웹 버전입니다!")
+st.title("🎣낚시다!! -낚시터 게임-")
+st.write("같이 낚시하지 않을레?")
 
 st.divider()
 
