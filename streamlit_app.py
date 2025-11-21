@@ -2,17 +2,20 @@ import streamlit as st
 import random
 import time
 
-# 페이지 기본 설정
+# ================= 페이지 기본 설정 =================
 st.set_page_config(page_title="낚시 게임", page_icon="🎣")
 
-# 초기값 세팅
+# ================= 세션 상태 초기화 =================
 if "coin" not in st.session_state:
     st.session_state.coin = 0
 
 if "inventory" not in st.session_state:
     st.session_state.inventory = []
 
-# 물고기 종류
+if "shop_open" not in st.session_state:
+    st.session_state.shop_open = False
+
+# ================= 물고기 종류 & 가격표 =================
 fish_list = [
     "누치", "정어리", "붕어", "빙어", "북어", "전갱이", "꽁치", "은어", "노래미", "고등어",
     "메기", "잉어", "쥐치", "볼락", "열기", "줄돔", "삼치", "병어", "향어", "우럭",
@@ -21,7 +24,6 @@ fish_list = [
     "가오리", "상어", "문어", "발광오징어", "킹크랩", "전복"
 ]
 
-# 가격표
 price_map = {
     "멸치": 10, "복어": 10,
     "누치": 15, "정어리": 15,
@@ -43,50 +45,45 @@ price_map = {
     "상어": 120, "문어": 120, "발광오징어": 120, "킹크랩": 120, "전복": 120
 }
 
+# ================= 페이지 UI =================
 st.title("🎣낚시다!! -낚시터 게임-")
-st.write("같이 낚시하지 않을레?")
+st.write("같이 낚시하지 않을래?")
 
 st.divider()
 
-# === 카드 UI로 메뉴 구성 ===
 col1, col2, col3, col4 = st.columns(4)
 
-# 낚시 카드
+# --- 낚시 카드 ---
 with col1:
     st.subheader("🎣 낚시하기")
     st.write("1~2번 낚시 가능!")
     fish_1 = st.button("1번 낚시")
     fish_2 = st.button("2번 낚시")
 
-# 인벤토리 카드
+# --- 인벤토리 카드 ---
 with col2:
     st.subheader("🎒 인벤토리")
     st.write(f"보유 개수: **{len(st.session_state.inventory)}**")
     st.write(st.session_state.inventory)
 
-# 상점 카드
+# --- 상점 카드 ---
 with col3:
-    st.subheader("💰 상점")
-    st.write("물고기를 팔아서 코인 벌기")
+    st.subheader("🏪 상점")
     go_shop = st.button("상점 열기")
 
-# 코인 카드
+# --- 코인 카드 ---
 with col4:
     st.subheader("💰 코인")
     st.write(f"현재 코인: **{st.session_state.coin} 코인**")
 
 st.divider()
 
-
-# ===== 기능 로직 =====
-
-# 낚시 1회
+# ================= 낚시 로직 =================
 def fish_once():
     fish = random.choice(fish_list)
     st.session_state.inventory.append(fish)
     st.success(f"🎣 {fish} 를(을) 낚았습니다!")
 
-# 버튼 눌리면 실행
 if fish_1:
     fish_once()
 
@@ -95,9 +92,11 @@ if fish_2:
     time.sleep(0.2)
     fish_once()
 
-# --- 상점 기능 ---
+# ================= 상점 로직 =================
 if go_shop:
+    st.session_state.shop_open = True
 
+if st.session_state.shop_open:
     st.subheader("🏪 상점")
 
     if len(st.session_state.inventory) == 0:
@@ -111,5 +110,6 @@ if go_shop:
             st.session_state.inventory.remove(selected)
             st.success(f"{selected} 판매 완료! +{price} 코인")
 
-        st.write("현재 인벤토리:", st.session_state.inventory)
-
+    # 상점 닫기 버튼
+    if st.button("상점 닫기"):
+        st.session_state.shop_open = False
