@@ -2,7 +2,7 @@ import streamlit as st
 import random
 
 # ================= 세션 초기화 =================
-for key, default in [("coin",0), ("inventory",[]), ("shop_open",False), ("items",{})]:
+for key, default in [("coin",0), ("inventory",[]), ("shop_open",False)]:
     if key not in st.session_state:
         st.session_state[key] = default
 
@@ -22,13 +22,18 @@ fish_prob = {
 fish_list = list(fish_prob.keys())
 fish_weights = list(fish_prob.values())
 
-price_map = {fish: (prob+5)*2 for fish, prob in fish_prob.items()}  # 임의 가격 예시
-
-# ================= 아이템 =================
-items_price = {"행운 미끼": 50, "강철 미끼": 100}
+price_map = {
+    "멸치":10,"복어":10,"누치":15,"정어리":15,"붕어":20,"빙어":20,"북어":20,
+    "전갱이":20,"꽁치":20,"은어":25,"노래미":30,"고등어":30,"메기":30,"잉어":30,
+    "쥐치":35,"볼락":35,"열기":35,"줄돔":35,"향어":35,"삼치":40,"병어":40,
+    "우럭":45,"송어":45,"연어":45,"해파리":50,"꼴뚜기":60,"넙치":60,"광어":70,
+    "농어":70,"가물치":70,"방어":75,"바다송어":75,"해마":75,"쭈꾸미":80,"아귀":85,
+    "한치":85,"오징어":90,"참치":95,"홍어":95,"랍스터":110,"가오리":110,"상어":120,
+    "문어":120,"발광오징어":120,"킹크랩":120,"전복":120
+}
 
 # ================= UI =================
-st.title("🎣 확률 낚시 + 아이템 상점")
+st.title("🎣 전체 물고기 확률 낚시게임")
 st.divider()
 
 col1, col2, col3 = st.columns(3)
@@ -36,26 +41,20 @@ col1, col2, col3 = st.columns(3)
 # --- 낚시 ---
 with col1:
     st.subheader("🎣 낚시하기")
-
-    # 행운 미끼 적용
-    luck_multiplier = 2 if st.session_state.items.get("행운 미끼", 0) > 0 else 1
-    weights = [w*luck_multiplier for w in fish_weights]
-
     if st.button("1번 낚시", key="fish1"):
-        fish = random.choices(fish_list, weights=weights, k=1)[0]
+        fish = random.choices(fish_list, weights=fish_weights, k=1)[0]
         st.session_state.inventory.append(fish)
         st.success(f"{fish} 낚았다!")
 
     if st.button("2번 낚시", key="fish2"):
-        fish = random.choices(fish_list, weights=weights, k=2)
+        fish = random.choices(fish_list, weights=fish_weights, k=2)
         st.session_state.inventory.extend(fish)
         st.success(f"{', '.join(fish)} 낚았다!")
 
 # --- 인벤토리 ---
 with col2:
     st.subheader("🎒 인벤토리")
-    st.write("물고기:", st.session_state.inventory)
-    st.write("아이템:", st.session_state.items)
+    st.write(st.session_state.inventory)
 
 # --- 상점 ---
 with col3:
@@ -69,41 +68,15 @@ st.divider()
 if st.session_state.shop_open:
     st.subheader("🏪 상점")
 
-    shop_tab = st.radio("판매/구매 선택", ["물고기 판매", "아이템 구매/판매"])
-
-    if shop_tab == "물고기 판매":
-        if not st.session_state.inventory:
-            st.warning("팔 물고기가 없어!")
-        else:
-            selected = st.selectbox("판매할 물고기 선택", st.session_state.inventory)
-            if st.button("판매하기", key="sell_fish"):
-                price = price_map.get(selected,0)
-                st.session_state.coin += price
-                st.session_state.inventory.remove(selected)
-                st.success(f"{selected} 판매 완료! +{price} 코인")
-
-    else:  # 아이템 구매/판매
-        item_names = list(items_price.keys())
-        action = st.radio("구매/판매", ["구매", "판매"])
-        selected_item = st.selectbox("아이템 선택", item_names)
-
-        if action == "구매":
-            if st.button("구매하기", key="buy_item"):
-                price = items_price[selected_item]
-                if st.session_state.coin >= price:
-                    st.session_state.coin -= price
-                    st.session_state.items[selected_item] = st.session_state.items.get(selected_item,0)+1
-                    st.success(f"{selected_item} 구매 완료!")
-                else:
-                    st.error("코인이 부족합니다!")
-        else:
-            if st.button("판매하기", key="sell_item"):
-                if st.session_state.items.get(selected_item,0) > 0:
-                    st.session_state.coin += items_price[selected_item]
-                    st.session_state.items[selected_item] -= 1
-                    st.success(f"{selected_item} 판매 완료!")
-                else:
-                    st.warning("해당 아이템이 없습니다!")
+    if not st.session_state.inventory:
+        st.warning("팔 물고기가 없어!")
+    else:
+        selected = st.selectbox("판매할 물고기 선택", st.session_state.inventory)
+        if st.button("판매하기", key="sell"):
+            price = price_map.get(selected,0)
+            st.session_state.coin += price
+            st.session_state.inventory.remove(selected)
+            st.success(f"{selected} 판매 완료! +{price} 코인")
 
     if st.button("상점 닫기", key="close_shop"):
         st.session_state.shop_open = False
