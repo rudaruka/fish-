@@ -11,8 +11,9 @@ if "coin" not in st.session_state:
 if "inventory" not in st.session_state:
     st.session_state.inventory = []
 
+# items가 없거나 딕셔너리가 아니면 새로 생성
 if "items" not in st.session_state or not isinstance(st.session_state.items, dict):
-    st.session_state.items = {"행운 미끼": 1}  # 아이템 예시
+    st.session_state.items = {"행운 미끼": 1}
 
 if "shop_open" not in st.session_state:
     st.session_state.shop_open = False
