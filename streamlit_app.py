@@ -113,6 +113,7 @@ def get_fishing_weights():
         weights = [w*1.5 if fish_list[i] in fusion_map else w for i,w in enumerate(weights)]
         
     # 3. 🎣 최종적으로 낚싯대 강화 보너스 적용
+    # 확률 10 이하(희귀 물고기)에만 강화 보너스 적용
     weights = [
         w * rod_bonus_multiplier if fish_prob.get(fish_list[i], 1) <= 10 else w
         for i, w in enumerate(weights)
@@ -155,7 +156,6 @@ col1,col2,col3 = st.columns(3)
 # ================= 🎣 낚시 =================
 with col1:
     st.subheader("🎣 낚시하기")
-    # ... (낚시 로직 유지)
     if st.session_state.location == "희귀 낚시터":
         if st.button("희귀 낚시 1회"):
             fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
@@ -236,17 +236,22 @@ if st.session_state.shop_open:
         can_upgrade = st.session_state.coin >= cost['coin'] and current_bait >= cost['bait']
 
         if st.button(f"Lv.{next_level} 강화 시도", disabled=not can_upgrade):
+            
+            # --- 💡 버그 수정: 재료 차감 로직을 강화 시도 직후로 이동 ---
+            
+            # 1. 재료 및 코인 차감 (성공/실패 무관, 버튼이 눌리면 바로 차감)
+            st.session_state.coin -= cost['coin']
+            st.session_state.items["강화 미끼"] -= cost['bait']
+            
+            # 2. 강화 성공/실패 판정
             if random.random() < cost['success_rate']:
                 st.session_state.rod_level = next_level
                 st.success(f"🎉 **강화 성공!** 낚싯대가 **Lv.{next_level}**이 되었습니다!")
             else:
-                st.error("💥 **강화 실패!** 아쉽게도 강화에 실패했습니다.")
+                st.error("💥 **강화 실패!** 재료만 소모되었습니다.")
             
-            # 재료 및 코인 차감 (성공/실패 무관)
-            st.session_state.coin -= cost['coin']
-            st.session_state.items["강화 미끼"] -= cost['bait']
-            
-            st.experimental_rerun() # UI 즉시 갱신
+            # 3. UI 즉시 갱신
+            st.experimental_rerun() 
             
         if not can_upgrade:
             st.warning("재료나 코인이 부족하여 강화할 수 없습니다.")
