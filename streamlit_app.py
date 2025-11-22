@@ -8,8 +8,6 @@ if "inventory" not in st.session_state:
     st.session_state.inventory = []
 if "shop_open" not in st.session_state:
     st.session_state.shop_open = False
-if "items" not in st.session_state:
-    st.session_state.items = {}  # 아이템 보유용 딕셔너리
 
 # ================= 물고기 & 가격 =================
 fish_prob = {
@@ -17,6 +15,7 @@ fish_prob = {
     "빙어": 10, "북어": 10, "전갱이": 10, "꽁치": 10, "은어": 8,
     "노래미": 7, "고등어": 7, "메기": 6, "잉어": 6, "쥐치": 5
 }
+
 fish_list = list(fish_prob.keys())
 fish_weights = list(fish_prob.values())
 price_map = {fish: (prob + 5) * 2 for fish, prob in fish_prob.items()}
@@ -26,11 +25,19 @@ fusion_map = {
     "멸치": "대멸치", "복어": "대복어", "누치": "대누치",
     "정어리": "대정어리", "붕어": "대붕어"
 }
+
 for base, fused in fusion_map.items():
     price_map[fused] = price_map[base] * 2
 
-# ================= 랜덤 이벤트 =================
+# ================= UI =================
+st.title("🎣 낚시터!")
+st.divider()
+
+col1, col2, col3 = st.columns(3)
+
+# --- 랜덤 이벤트 함수 ---
 def random_event(event_rate):
+    """랜덤 이벤트 시스템"""
     if random.random() < event_rate:
         st.info("🎲 랜덤 이벤트 발생!")
         event = random.randint(1, 4)
@@ -48,39 +55,49 @@ def random_event(event_rate):
                 st.session_state.inventory.remove(lost)
                 st.error(f"🔥 물고기({lost}) 1마리 도망감!")
             else:
-                st.warning("도망갈 물고기가 없습니다.")
+                st.warning("도망갈 물고기가 없어서 아무 일도 일어나지 않았습니다.")
         else:
             st.success("✨ 신비한 바람이 분다… 좋은 기운이 느껴진다!")
-
-# ================= UI =================
-st.title("🎣 낚시터! ")
-st.divider()
-col1, col2, col3 = st.columns(3)
 
 # --- 낚시 ---
 with col1:
     st.subheader("🎣 낚시하기")
-    luck_multiplier = 1.5 if st.session_state.items.get("행운 미끼", 0) > 0 else 1
-
-    # 1번 낚시
     if st.button("1번 낚시"):
         fish = random.choices(fish_list, weights=fish_weights, k=1)[0]
         st.session_state.inventory.append(fish)
         st.success(f"{fish} 을/를 낚았다!")
-        random_event(0.15 * luck_multiplier)
+        random_event(0.15)  # 15% 확률 이벤트
 
-    # 2번 낚시
     if st.button("2번 낚시"):
         fish = random.choices(fish_list, weights=fish_weights, k=2)
         st.session_state.inventory.extend(fish)
         st.success(f"{', '.join(fish)} 을/를 낚았다!")
-        random_event(0.25 * luck_multiplier)
+        random_event(0.25)  # 25% 확률 이벤트
 
 # --- 인벤토리 ---
 with col2:
     st.subheader("🎒 인벤토리")
-    inventory_sorted = sorted(st.session_state.inventory)
-    st.write("물고기:", inventory_sorted)
+    st.write("물고기:", st.session_state.inventory)
+
+    # ===== 인벤토리 정렬 =====
+    sort_option = st.radio(
+        "정렬 방식 선택",
+        ["기본 순서", "가나다 순", "희귀도 순(낮은 등장 확률이 위)", "가격 높은 순"]
+    )
+
+    if sort_option == "가나다 순":
+        st.session_state.inventory = sorted(st.session_state.inventory)
+    elif sort_option == "희귀도 순(낮은 등장 확률이 위)":
+        st.session_state.inventory = sorted(
+            st.session_state.inventory,
+            key=lambda x: fish_prob.get(x, 999)
+        )
+    elif sort_option == "가격 높은 순":
+        st.session_state.inventory = sorted(
+            st.session_state.inventory,
+            key=lambda x: price_map.get(x, 0),
+            reverse=True
+        )
 
 # --- 상점 ---
 with col3:
@@ -94,21 +111,23 @@ st.divider()
 if st.session_state.shop_open:
     st.subheader("🏪 상점")
     if st.session_state.inventory:
-        selected_multi = st.multiselect("판매할 물고기 선택 (다중 선택 가능)", st.session_state.inventory)
+        selected = st.multiselect("판매할 물고기 선택 (다중 선택 가능)", st.session_state.inventory)
         if st.button("판매하기"):
             total_price = 0
-            for fish in selected_multi:
-                price = price_map.get(fish, 0)
+            for f in selected:
+                price = price_map.get(f, 0)
                 st.session_state.coin += price
-                st.session_state.inventory.remove(fish)
+                st.session_state.inventory.remove(f)
                 total_price += price
-            st.success(f"{', '.join(selected_multi)} 판매 완료! +{total_price} 코인")
+            if total_price > 0:
+                st.success(f"{', '.join(selected)} 판매 완료! +{total_price} 코인")
     else:
         st.warning("팔 물고기가 없습니다!")
 
 # --- 합성 기능 ---
 st.subheader("⚡ 물고기 합성")
 fusion_candidates = [f for f in fusion_map.keys() if st.session_state.inventory.count(f) >= 2]
+
 if fusion_candidates:
     selected_fuse = st.selectbox("합성할 물고기 선택", fusion_candidates)
     if st.button("합성하기"):
@@ -116,7 +135,7 @@ if fusion_candidates:
             st.session_state.inventory.remove(selected_fuse)
             st.session_state.inventory.remove(selected_fuse)
             st.session_state.inventory.append(fusion_map[selected_fuse])
-            st.success(f"합성 성공! {selected_fuse} → {fusion_map[selected_fuse]}")
+            st.success(f"합성 성공! {selected_fuse} 2마리 → {fusion_map[selected_fuse]} 1마리")
         else:
             st.session_state.inventory.remove(selected_fuse)
             st.session_state.inventory.remove(selected_fuse)
@@ -126,7 +145,3 @@ else:
 
 # --- 코인 표시 ---
 st.write(f"💰 현재 코인: {st.session_state.coin}")
-
-# --- 아이템 표시 ---
-st.subheader("🎁 아이템")
-st.write(st.session_state.items)
