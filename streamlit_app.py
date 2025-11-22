@@ -83,7 +83,7 @@ def get_fishing_weights():
     return current_weights
 
 # ================= UI 시작 =================
-st.title("🎣 낚시터!")
+st.title("🎣 낚시는 운이야!!")
 st.write(f"💰 **현재 코인: {st.session_state.coin}**")
 st.divider()
 
@@ -104,9 +104,9 @@ if temp_location != current_location:
         if st.session_state.coin >= 1000:
             st.session_state.coin -= 1000
             st.session_state.location = temp_location
-            st.success("🔥 희귀 낚시터 입장! (**30코인 차감**)")
+            st.success("🔥 희귀 낚시터 입장! (**1000코인을 차감합니다**)")
         else:
-            st.warning("❗ 코인이 부족합니다! (30코인 필요)")
+            st.warning("❗ 코인이 부족합니다! (1000코인으로 입장하실 수 있습니다)")
             # 코인 부족 시 세션 상태를 원래 위치로 되돌려 selectbox도 복구
             st.session_state.location = current_location
             st.session_state.location_selector = current_location
