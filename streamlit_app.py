@@ -1,28 +1,6 @@
 import streamlit as st
 import random
-import base64
-import streamlit as st
-
-# ---- 배경 이미지 설정 함수 ----
-def set_background(image_file):
-    with open(image_file, "rb") as f:
-        data = f.read()
-        encoded = base64.b64encode(data).decode()
-
-    css = f"""
-    <style>
-    [data-testid="stAppViewContainer"] {{
-        background-image: url("data:image/jpg;base64,{encoded}");
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-    }}
-    [data-testid="stHeader"] {{
-        background: rgba(0,0,0,0);
-    }}
-    </style>
-    """
-    st.markdown(css, unsafe_allow_html=True)
+from PIL import Image
 
 # ================= 세션 초기화 =================
 if "coin" not in st.session_state:
@@ -57,9 +35,15 @@ fusion_map = {
 for base, fused in fusion_map.items():
     price_map[fused] = price_map[base] * 2
 
+# ================= 낚시터 이미지 =================
+location_images = {
+    "강가": "images/river.jpg",
+    "바다": "images/sea.jpg",
+    "희귀 낚시터": "images/legend.jpg"
+}
+
 # ================= 함수 =================
 def random_event(event_rate):
-    """랜덤 이벤트 시스템"""
     if random.random() < event_rate:
         st.info("🎲 랜덤 이벤트 발생!")
         event = random.randint(1, 4)
@@ -82,26 +66,19 @@ def random_event(event_rate):
         else:
             st.success("✨ 신비한 바람이 분다… 좋은 기운이 느껴진다!")
 
-# ========== 낚시터별 확률 ==========
 def get_fishing_weights():
     if st.session_state.location == "강가":
-        # 기본 확률
         return fish_weights
-
     elif st.session_state.location == "바다":
-        # 바다 물고기 확률 증가
         return [
             w * 1.3 if f in ["전갱이", "고등어", "꽁치"] else w * 0.8
             for f, w in zip(fish_list, fish_weights)
         ]
-
     elif st.session_state.location == "희귀 낚시터":
-        # 희귀 물고기 등장률 업 (원래 확률 낮은 애들 버프)
         return [
             w * 3 if w <= 10 else w
             for w in fish_weights
         ]
-
 
 # ================= UI 시작 =================
 st.title("🎣 낚시터!")
@@ -109,7 +86,6 @@ st.divider()
 
 # 🌍 낚시터 선택
 st.subheader("🌍 낚시터 선택")
-
 location = st.selectbox(
     "현재 낚시터",
     ["강가", "바다", "희귀 낚시터"],
@@ -127,6 +103,10 @@ if location == "희귀 낚시터" and st.session_state.location != "희귀 낚�
 else:
     st.session_state.location = location
 
+# 낚시터 이미지 표시
+img_path = location_images[st.session_state.location]
+img = Image.open(img_path)
+st.image(img, use_column_width=True)
 st.divider()
 
 col1, col2, col3 = st.columns(3)
@@ -149,7 +129,6 @@ with col1:
             st.session_state.fishbook.add(f)
         st.success(f"{', '.join(fish)} 을/를 낚았다!")
         random_event(0.25)
-
 
 # ================= 인벤토리 =================
 with col2:
@@ -174,7 +153,6 @@ with col2:
             key=lambda x: price_map.get(x, 0),
             reverse=True
         )
-
 
 # ================= 상점 =================
 with col3:
@@ -224,7 +202,6 @@ else:
 
 # ================= 도감 =================
 st.subheader("📚 물고기 도감")
-
 for fish in fish_list:
     if fish in st.session_state.fishbook:
         st.write(f"✔ {fish} (발견됨)")
