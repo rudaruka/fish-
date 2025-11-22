@@ -1,10 +1,11 @@
 import streamlit as st
 import random
+from collections import Counter
 # from PIL import Image # 파일 시스템 오류 방지를 위해 제거
 
 # ================= 세션 초기화 =================
 if "coin" not in st.session_state:
-    st.session_state.coin = 100 # 시작 코인 100으로 설정 (테스트 용이)
+    st.session_state.coin = 0  # 👈 코인 초기값을 0으로 수정했습니다.
 if "inventory" not in st.session_state:
     st.session_state.inventory = []
 if "shop_open" not in st.session_state:
@@ -13,7 +14,6 @@ if "fishbook" not in st.session_state:
     st.session_state.fishbook = set()      # 도감
 if "location" not in st.session_state:
     st.session_state.location = "강가"     # 기본 낚시터
-# 낚시터 선택 복구용 변수
 if "location_selector" not in st.session_state:
     st.session_state.location_selector = "강가"
 
@@ -35,16 +35,9 @@ fusion_map = {
     "정어리": "대정어리", "붕어": "대붕어"
 }
 
-# 합성 물고기 가격 (합성 물고기의 가격과 희귀도는 일반 물고기와 다르게 정의됨)
+# 합성 물고기 가격
 for base, fused in fusion_map.items():
     price_map[fused] = price_map.get(base, 0) * 5 # 기본 5배로 설정
-
-# # ================= 낚시터 이미지 (파일 오류 방지를 위해 제거) =================
-# location_images = {
-#     "강가": "images/river.jpg",
-#     "바다": "images/sea.jpg",
-#     "희귀 낚시터": "images/legend.jpg"
-# }
 
 # ================= 함수 =================
 def random_event(event_rate):
@@ -63,7 +56,6 @@ def random_event(event_rate):
             st.success(f"🎣 보너스 물고기 **{f2}** 획득!")
         elif event == 3:
             if st.session_state.inventory:
-                # 인벤토리 내의 물고기 중 하나를 무작위로 선택하여 제거
                 lost = random.choice(st.session_state.inventory)
                 st.session_state.inventory.remove(lost)
                 st.error(f"🔥 물고기(**{lost}**) 1마리 도망감!")
@@ -74,7 +66,6 @@ def random_event(event_rate):
 
 def get_fishing_weights():
     """현재 낚시터에 따른 확률 가중치를 반환"""
-    # ... (생략: 기존 로직 그대로 사용)
     current_weights = fish_weights
 
     if st.session_state.location == "바다":
@@ -100,7 +91,6 @@ st.divider()
 st.subheader("🌍 낚시터 선택")
 
 current_location = st.session_state.location
-# st.selectbox의 선택 값을 st.session_state에 직접 연결하여 사용
 temp_location = st.selectbox(
     "현재 낚시터",
     ["강가", "바다", "희귀 낚시터"],
@@ -108,7 +98,7 @@ temp_location = st.selectbox(
     key="location_selector"
 )
 
-# 낚시터 변경 및 비용 차감 로직 (논리 오류 수정)
+# 낚시터 변경 및 비용 차감 로직
 if temp_location != current_location:
     if temp_location == "희귀 낚시터":
         if st.session_state.coin >= 30:
@@ -124,7 +114,6 @@ if temp_location != current_location:
         st.session_state.location = temp_location
         st.info(f"📍 낚시터를 **{temp_location}** 로 변경했습니다.")
 else:
-    # selectbox가 현재 위치와 같을 때도 세션 상태를 업데이트하여 동기화 유지
     st.session_state.location = temp_location
     
 st.markdown(f"**현재 위치:** {st.session_state.location}")
@@ -151,11 +140,11 @@ with col1:
         st.success(f"**{', '.join(fish_caught)}** 을/를 낚았다!")
         random_event(0.25)
 
-# ================= 인벤토리 (버그 수정: 원본 유지) =================
+# ================= 인벤토리 =================
 with col2:
     st.subheader("🎒 인벤토리")
     
-    # **핵심 수정:** 원본 인벤토리를 복사하여 정렬에 사용
+    # 원본 인벤토리를 복사하여 정렬에 사용 (원본 순서 유지)
     display_inventory = st.session_state.inventory.copy()
 
     sort_option = st.radio(
@@ -166,9 +155,8 @@ with col2:
     if sort_option == "가나다 순":
         display_inventory.sort()
     elif sort_option == "희귀도 순(낮은 확률 먼저)":
-        # 합성 물고기가 fish_prob에 없으므로 희귀도 키 값은 1 (매우 희귀함)로 설정
         display_inventory.sort(
-            key=lambda x: fish_prob.get(x, 1)
+            key=lambda x: fish_prob.get(x, 1) # 합성 물고기는 1 (매우 희귀)로 간주
         )
     elif sort_option == "가격 높은 순":
         display_inventory.sort(
@@ -179,7 +167,6 @@ with col2:
     # 출력은 정렬된 사본을 사용
     st.write("---")
     if display_inventory:
-        from collections import Counter
         inventory_count = Counter(display_inventory)
         
         for fish_name, count in inventory_count.items():
@@ -200,7 +187,6 @@ st.divider()
 if st.session_state.shop_open:
     st.subheader("🏪 물고기 판매")
     if st.session_state.inventory:
-        # 판매할 물고기를 선택할 때는 현재 인벤토리 리스트를 사용
         selected = st.multiselect(
             "판매할 물고기 선택", 
             st.session_state.inventory,
@@ -210,11 +196,10 @@ if st.session_state.shop_open:
         if st.button("선택된 물고기 판매"):
             total_price = 0
             
-            # 선택된 물고기를 판매할 때, 원본 인벤토리에서 하나씩 제거
             for f in selected:
                 price = price_map.get(f, 0)
                 st.session_state.coin += price
-                st.session_state.inventory.remove(f) # 판매된 물고기 제거
+                st.session_state.inventory.remove(f) 
                 total_price += price
                 
             if total_price > 0:
@@ -225,10 +210,8 @@ if st.session_state.shop_open:
 # ================= 합성 =================
 st.subheader("⚡ 물고기 합성")
 
-from collections import Counter
 inventory_count = Counter(st.session_state.inventory)
 
-# 합성 가능한 물고기 목록 (같은 종류 2마리 이상 필요)
 fusion_candidates = [
     f for f in fusion_map.keys() 
     if inventory_count.get(f, 0) >= 2
@@ -238,7 +221,6 @@ if fusion_candidates:
     selected_fuse = st.selectbox("합성할 물고기 선택", fusion_candidates)
     
     if st.button("합성하기"):
-        # 안전 장치: 다시 한번 수량 확인
         if inventory_count.get(selected_fuse, 0) >= 2:
             st.session_state.inventory.remove(selected_fuse)
             st.session_state.inventory.remove(selected_fuse)
@@ -247,6 +229,7 @@ if fusion_candidates:
                 result = fusion_map[selected_fuse]
                 st.session_state.inventory.append(result)
                 st.session_state.fishbook.add(result)
+                st.balloons()
                 st.success(f"**합성 성공!** {selected_fuse} 2마리 → **{result}** 1마리")
             else:
                 st.error(f"**합성 실패!** {selected_fuse} 2마리 소모")
@@ -272,6 +255,6 @@ for i, (base, fused) in enumerate(fusion_map.items()):
         status = "✔ 발견됨" if fused in st.session_state.fishbook else "✖ 미발견"
         st.write(f"**{fused}** ({status})")
 
-# ================= 코인 표시 =================
+# ================= 최종 코인 표시 =================
 st.write("---")
 st.write(f"💰 **최종 코인: {st.session_state.coin}**")
