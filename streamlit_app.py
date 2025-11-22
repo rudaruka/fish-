@@ -225,7 +225,10 @@ if st.session_state.shop_open:
 
     if next_level in ROD_UPGRADE_COSTS:
         cost = ROD_UPGRADE_COSTS[next_level]
-        current_bait = st.session_state.items.get("강화 미끼", 0)
+        
+        # 💡 버그 수정: st.session_state.items에 안전하게 접근
+        items_dict = st.session_state.get("items", {}) 
+        current_bait = items_dict.get("강화 미끼", 0)
         
         st.write(f"**현재 레벨: Lv.{current_level}**")
         st.write(f"**다음 레벨: Lv.{next_level}**")
@@ -236,8 +239,6 @@ if st.session_state.shop_open:
         can_upgrade = st.session_state.coin >= cost['coin'] and current_bait >= cost['bait']
 
         if st.button(f"Lv.{next_level} 강화 시도", disabled=not can_upgrade):
-            
-            # --- 💡 버그 수정: 재료 차감 로직을 강화 시도 직후로 이동 ---
             
             # 1. 재료 및 코인 차감 (성공/실패 무관, 버튼이 눌리면 바로 차감)
             st.session_state.coin -= cost['coin']
