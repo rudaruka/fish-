@@ -4,7 +4,7 @@ from collections import Counter
 # from PIL import Image # 로컬 파일 문제 방지를 위해 주석 처리 유지
 
 # ================= 세션 초기화 =================
-# items가 먼저 정의되도록 순서 조정
+# 모든 세션 상태 변수는 스크립트 실행 초기에 정의되어야 합니다.
 if "items" not in st.session_state:
     st.session_state.items = {
         "강화 미끼": 0,
@@ -125,7 +125,7 @@ def get_fishing_weights():
 def auto_fish(num_tries=5):
     """자동 낚시권 1개를 소모하여 num_tries 횟수만큼 낚시를 진행합니다."""
     
-    # st.session_state.items에 안전하게 접근 (함수 내에서도 방어적 코딩)
+    # 함수 내에서도 items에 안전하게 접근
     items_dict = st.session_state.get("items", {})
     
     # 자동 낚시권이 있는지 확인
@@ -184,7 +184,7 @@ col1,col2,col3 = st.columns(3)
 with col1:
     st.subheader("🎣 낚시하기")
     
-    # 💡 오류 수정 라인: st.session_state.items에 안전하게 접근
+    # 💡 오류 수정: items 딕셔너리를 안전하게 가져옴
     items_dict = st.session_state.get("items", {}) 
     current_auto_pass = items_dict.get("자동 낚시권", 0)
     
@@ -233,13 +233,12 @@ with col2:
     st.write("---")
     st.markdown("##### 🛒 구매 아이템 (강화 재료 포함)")
     
-    if "items" in st.session_state and isinstance(st.session_state.items, dict): 
-        if any(st.session_state.items.values()):
-            for item, cnt in st.session_state.items.items():
-                if cnt > 0:
-                    st.write(f"**{item}** x **{cnt}**")
-        else:
-            st.info("구매한 아이템이 없습니다.")
+    # 💡 items 딕셔너리를 안전하게 확인하고 표시
+    items_dict = st.session_state.get("items", {})
+    if isinstance(items_dict, dict) and any(items_dict.values()):
+        for item, cnt in items_dict.items():
+            if cnt > 0:
+                st.write(f"**{item}** x **{cnt}**")
     else:
         st.info("구매한 아이템이 없습니다.")
         
