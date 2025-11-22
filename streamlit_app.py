@@ -2,12 +2,14 @@ import streamlit as st
 import random
 from collections import Counter
 
-# ================= 세션 초기화 =================
+# ================= 세션 초기화 (강화됨) =================
+# items가 딕셔너리임을 확실히 보장합니다.
 if "items" not in st.session_state or not isinstance(st.session_state.items, dict):
     st.session_state.items = {
         "강화 미끼": 0,
         "자동 낚시권": 0
     }
+    
 if "coin" not in st.session_state:
     st.session_state.coin = 0
 if "inventory" not in st.session_state:
@@ -120,7 +122,7 @@ def auto_fish(num_tries=5):
         random_event(0.1)
         
     st.success(f"✅ 자동 낚시 완료! 잡은 물고기: {', '.join(fish_caught_list)}")
-    # st.experimental_rerun() 제거: Streamlit 버튼 클릭 시 자동 리런됨
+    # st.experimental_rerun() 제거
 
 # ================= UI =================
 st.title("🎣 낚시는 운이야!!")
@@ -235,6 +237,7 @@ if st.session_state.shop_open:
         can_upgrade = st.session_state.coin >= cost['coin'] and current_bait >= cost['bait']
         if st.button(f"Lv.{next_level} 강화 시도", key=f"upgrade_{next_level}", disabled=not can_upgrade):
             st.session_state.coin -= cost['coin']
+            # st.session_state.items는 초기화로 인해 딕셔너리임을 보장
             st.session_state.items["강화 미끼"] -= cost['bait']
             if random.random() < cost['success_rate']:
                 st.session_state.rod_level = next_level
@@ -255,12 +258,26 @@ if st.session_state.shop_open:
                 if st.session_state.coin >= data["price"]:
                     st.session_state.coin -= data["price"]
                     
-                    # 💡 수정된 부분: items 딕셔너리를 안전하게 가져온 후 업데이트
-                    items_dict_safe = st.session_state.get("items", {}) 
-                    current_count = items_dict_safe.get(item, 0)
-                    st.session_state.items[item] = current_count + 1
+                    # 💡 오류 수정: st.session_state.items에 안전하게 접근하여 업데이트
+                    # items_dict_safe를 사용하거나, get으로 값을 가져올 때 st.session_state.items를 사용
                     
-                    st.success(f"**{item}** 1개 구매 완료!")
+                    # 현재 코드: st.session_state.items[item] = st.session_state.items.get(item,0)+1
+                    # 이 로직을 안전하게 변환합니다.
+                    
+                    try:
+                        current_count = st.session_state.items.get(item, 0)
+                        st.session_state.items[item] = current_count + 1
+                        st.success(f"**{item}** 1개 구매 완료!")
+                    except Exception as e:
+                        # 만약의 경우를 대비하여 에러 메시지 출력 (디버깅용)
+                        st.error(f"❌ 아이템 구매 중 오류 발생: {type(e).__name__}")
+                        st.session_state.items = {
+                            "강화 미끼": st.session_state.items.get("강화 미끼", 0),
+                            "자동 낚시권": st.session_state.items.get("자동 낚시권", 0)
+                        }
+                        st.session_state.items[item] = st.session_state.items.get(item, 0) + 1
+                        st.success(f"**{item}** 1개 구매 완료 (복구 후).")
+
                 else:
                     st.error("❗ 코인 부족!")
 
