@@ -92,7 +92,7 @@ def get_fishing_weights():
     
     if st.session_state.location == "바다":
         weights = [w*1.3 if f in ["전갱이","고등어","꽁치"] else w*0.8
-                    for f,w in zip(fish_list, fish_weights)]
+                      for f,w in zip(fish_list, fish_weights)]
     elif st.session_state.location == "희귀 낚시터":
         weights = [w*3 if w<=10 else w for w in fish_weights]
         weights = [w*1.5 if fish_list[i] in fusion_map else w for i,w in enumerate(weights)]
@@ -120,6 +120,7 @@ def auto_fish(num_tries=5):
         random_event(0.1)
         
     st.success(f"✅ 자동 낚시 완료! 잡은 물고기: {', '.join(fish_caught_list)}")
+    # st.experimental_rerun() 제거: Streamlit 버튼 클릭 시 자동 리런됨
 
 # ================= UI =================
 st.title("🎣 낚시는 운이야!!")
@@ -155,7 +156,10 @@ col1,col2,col3 = st.columns(3)
 # ================= 🎣 낚시 =================
 with col1:
     st.subheader("🎣 낚시하기")
-    current_auto_pass = st.session_state.items.get("자동 낚시권", 0)
+    # items에 안전하게 접근
+    items_dict = st.session_state.get("items", {}) 
+    current_auto_pass = items_dict.get("자동 낚시권", 0)
+    
     if st.button(f"자동 낚시 (5회 소모)", key="auto_fish_btn", disabled=(current_auto_pass == 0)):
         auto_fish(5)
 
@@ -195,8 +199,10 @@ with col2:
         st.info("인벤토리가 비어 있습니다.")
     st.write("---")
     st.subheader("🛒 구매 아이템")
-    if any(st.session_state.items.values()):
-        for item, cnt in st.session_state.items.items():
+    # items 딕셔너리를 안전하게 가져와서 표시
+    items_dict = st.session_state.get("items", {})
+    if any(items_dict.values()):
+        for item, cnt in items_dict.items():
             if cnt>0:
                 st.write(f"**{item}** x **{cnt}**")
     else:
@@ -217,7 +223,10 @@ if st.session_state.shop_open:
     next_level = current_level + 1
     if next_level in ROD_UPGRADE_COSTS:
         cost = ROD_UPGRADE_COSTS[next_level]
-        current_bait = st.session_state.items.get("강화 미끼", 0)
+        # items에 안전하게 접근
+        items_dict = st.session_state.get("items", {}) 
+        current_bait = items_dict.get("강화 미끼", 0)
+        
         st.write(f"**현재 레벨: Lv.{current_level}**")
         st.write(f"**다음 레벨: Lv.{next_level}**")
         st.write(f"필요 코인: **{cost['coin']}** (현재: {st.session_state.coin})")
@@ -245,7 +254,12 @@ if st.session_state.shop_open:
             if st.button(f"구매 {item}", key=f"buy_{item}"):
                 if st.session_state.coin >= data["price"]:
                     st.session_state.coin -= data["price"]
-                    st.session_state.items[item] = st.session_state.items.get(item,0)+1
+                    
+                    # 💡 수정된 부분: items 딕셔너리를 안전하게 가져온 후 업데이트
+                    items_dict_safe = st.session_state.get("items", {}) 
+                    current_count = items_dict_safe.get(item, 0)
+                    st.session_state.items[item] = current_count + 1
+                    
                     st.success(f"**{item}** 1개 구매 완료!")
                 else:
                     st.error("❗ 코인 부족!")
