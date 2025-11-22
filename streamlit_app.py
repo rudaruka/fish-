@@ -26,7 +26,7 @@ fish_prob = {
 
 fish_list = list(fish_prob.keys())
 fish_weights = list(fish_prob.values())
-# 가격 산정 기준 변경: (100 - 확률) * 1로 낮춤 (장기 플레이 유도)
+# 가격 산정 기준 변경: (100 - 확률) * 1로 낮춤
 price_map = {fish: (100 - prob) * 1 for fish, prob in fish_prob.items()}
 
 # ================= 합성 규칙 및 특수 아이템 정의 =================
@@ -39,7 +39,7 @@ fusion_map = {
 for base, fused in fusion_map.items():
     price_map[fused] = price_map.get(base, 0) * 5 
 
-# 💎 희귀 낚시터 전용 특수 아이템 가격 추가 💎
+# 💎 희귀 낚시터 전용 특수 아이템 가격 추가
 price_map["오래된 지도 조각"] = 5000 
 
 
@@ -49,7 +49,6 @@ def random_event(event_rate):
     if random.random() < event_rate:
         st.info("🎲 랜덤 이벤트 발생!")
         
-        # 🌟 이벤트 범위 확장: 1~4 (기존) 또는 5 (새로운 보상)
         event = random.randint(1, 5) 
         
         if event == 1:
@@ -96,7 +95,7 @@ def get_fishing_weights():
         ]
         
         # 2. 🌟 희귀 낚시터 전용: 합성 재료 확률 1.5배 보너스
-        fusion_bases = list(fusion_map.keys()) # 멸치, 복어, 누치, 정어리, 붕어
+        fusion_bases = list(fusion_map.keys()) 
         
         current_weights = [
             w * 1.5 if fish_list[i] in fusion_bases else w
@@ -143,47 +142,71 @@ st.divider()
 
 col1, col2, col3 = st.columns(3)
 
-# ================= 낚시 =================
+# ================= 🎣 낚시하기 (희귀 낚시터 분기 적용) =================
 with col1:
     st.subheader("🎣 낚시하기")
 
-    if st.button("1번 낚시"):
-        fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
-        st.session_state.inventory.append(fish)
-        st.session_state.fishbook.add(fish)
-        st.success(f"**{fish}** 을/를 낚았다!")
-        random_event(0.15)
+    if st.session_state.location == "희귀 낚시터":
+        # 🌟 희귀 낚시터 전용 버튼
+        if st.button("희귀 낚시 (1회)"):
+            fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
+            st.session_state.inventory.append(fish)
+            st.session_state.fishbook.add(fish)
+            st.success(f"**[💎 희귀]** {fish} 을/를 낚았다!")
+            random_event(0.20) # 희귀 낚시터이므로 이벤트 확률 20%로 상향
+    
+        if st.button("희귀 낚시 (2회)"):
+            fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=2)
+            st.session_state.inventory.extend(fish_caught)
+            for f in fish_caught:
+                st.session_state.fishbook.add(f)
+            st.success(f"**[💎 희귀]** {', '.join(fish_caught)} 을/를 낚았다!")
+            random_event(0.35) # 2회 낚시 이벤트 확률 35%로 상향
+    else:
+        # 일반 낚시터 버튼 (강가, 바다)
+        if st.button("1번 낚시"):
+            fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
+            st.session_state.inventory.append(fish)
+            st.session_state.fishbook.add(fish)
+            st.success(f"**{fish}** 을/를 낚았다!")
+            random_event(0.15)
 
-    if st.button("2번 낚시"):
-        fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=2)
-        st.session_state.inventory.extend(fish_caught)
-        for f in fish_caught:
-            st.session_state.fishbook.add(f)
-        st.success(f"**{', '.join(fish_caught)}** 을/를 낚았다!")
-        random_event(0.25)
+        if st.button("2번 낚시"):
+            fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=2)
+            st.session_state.inventory.extend(fish_caught)
+            for f in fish_caught:
+                st.session_state.fishbook.add(f)
+            st.success(f"**{', '.join(fish_caught)}** 을/를 낚았다!")
+            random_event(0.25)
 
-# ================= 인벤토리 =================
+
+# ================= 🎒 인벤토리 (희귀 낚시터 분기 적용) =================
 with col2:
     st.subheader("🎒 인벤토리")
     
     display_inventory = st.session_state.inventory.copy()
 
-    sort_option = st.radio(
-        "정렬 방식 선택",
-        ["기본 순서", "가나다 순", "희귀도 순(낮은 확률 먼저)", "가격 높은 순"]
-    )
-
-    if sort_option == "가나다 순":
-        display_inventory.sort()
-    elif sort_option == "희귀도 순(낮은 확률 먼저)":
-        display_inventory.sort(
-            key=lambda x: fish_prob.get(x, 1) 
+    # 🌟 희귀 낚시터에서는 정렬 옵션을 숨김
+    if st.session_state.location != "희귀 낚시터":
+        sort_option = st.radio(
+            "정렬 방식 선택",
+            ["기본 순서", "가나다 순", "희귀도 순(낮은 확률 먼저)", "가격 높은 순"]
         )
-    elif sort_option == "가격 높은 순":
-        display_inventory.sort(
-            key=lambda x: price_map.get(x, 0),
-            reverse=True
-        )
+        # 정렬 로직 적용
+        if sort_option == "가나다 순":
+            display_inventory.sort()
+        elif sort_option == "희귀도 순(낮은 확률 먼저)":
+            display_inventory.sort(
+                key=lambda x: fish_prob.get(x, 1) 
+            )
+        elif sort_option == "가격 높은 순":
+            display_inventory.sort(
+                key=lambda x: price_map.get(x, 0),
+                reverse=True
+            )
+    else:
+        # 희귀 낚시터에서는 정렬 없이 기본 순서만 표시
+        st.write("✨ **희귀 낚시터**에서는 기본 순서로 표시됩니다.")
 
     st.write("---")
     if display_inventory:
@@ -207,7 +230,6 @@ st.divider()
 if st.session_state.shop_open:
     st.subheader("🏪 물고기 판매")
     if st.session_state.inventory:
-        # 판매할 수 있는 모든 아이템 목록 (물고기 + 지도 조각)
         all_sellable_items = st.session_state.inventory.copy()
         
         selected = st.multiselect(
