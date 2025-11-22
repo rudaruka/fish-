@@ -125,8 +125,11 @@ def get_fishing_weights():
 def auto_fish(num_tries=5):
     """자동 낚시권 1개를 소모하여 num_tries 횟수만큼 낚시를 진행합니다."""
     
+    # st.session_state.items에 안전하게 접근 (함수 내에서도 방어적 코딩)
+    items_dict = st.session_state.get("items", {})
+    
     # 자동 낚시권이 있는지 확인
-    if st.session_state.items.get("자동 낚시권", 0) <= 0:
+    if items_dict.get("자동 낚시권", 0) <= 0:
         st.error("자동 낚시권이 없습니다.")
         return
         
@@ -181,9 +184,11 @@ col1,col2,col3 = st.columns(3)
 with col1:
     st.subheader("🎣 낚시하기")
     
-    current_auto_pass = st.session_state.items.get("자동 낚시권", 0)
+    # 💡 오류 수정 라인: st.session_state.items에 안전하게 접근
+    items_dict = st.session_state.get("items", {}) 
+    current_auto_pass = items_dict.get("자동 낚시권", 0)
     
-    # 💡 자동 낚시 버튼 추가 (자동 낚시권이 0개일 때 비활성화)
+    # 💡 자동 낚시 버튼
     if st.button(f"자동 낚시 (5회 소모)", disabled=(current_auto_pass == 0)):
         auto_fish(5)
 
