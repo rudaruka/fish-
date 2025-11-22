@@ -24,15 +24,6 @@ def set_background(image_file):
     """
     st.markdown(css, unsafe_allow_html=True)
 
-    # ---- 낚시터별 배경 이미지 설정 ----
-if st.session_state.location == "강가":
-    set_background("river.jpg")
-elif st.session_state.location == "바다":
-    set_background("sea.jpg")
-elif st.session_state.location == "희귀 낚시터":
-    set_background("legend.jpg")
-
-
 # ================= 세션 초기화 =================
 if "coin" not in st.session_state:
     st.session_state.coin = 0
