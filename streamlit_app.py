@@ -226,7 +226,7 @@ if st.session_state.shop_open:
     if next_level in ROD_UPGRADE_COSTS:
         cost = ROD_UPGRADE_COSTS[next_level]
         
-        # 💡 버그 수정: st.session_state.items에 안전하게 접근
+        # st.session_state.items에 안전하게 접근
         items_dict = st.session_state.get("items", {}) 
         current_bait = items_dict.get("강화 미끼", 0)
         
@@ -273,7 +273,10 @@ if st.session_state.shop_open:
             if st.button(f"구매 {item}", key=f"buy_{item}"):
                 if st.session_state.coin >= data["price"]:
                     st.session_state.coin -= data["price"]
-                    st.session_state.items[item] += 1
+                    
+                    # 💡 오류 수정 라인: st.session_state.items에 키가 없으면 0으로 초기화하고 1을 더합니다.
+                    st.session_state.items[item] = st.session_state.items.get(item, 0) + 1
+                    
                     st.success(f"**{item}** 1개 구매 완료!")
                 else:
                     st.error("❗ 코인 부족!")
