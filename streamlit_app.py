@@ -101,8 +101,8 @@ temp_location = st.selectbox(
 # 낚시터 변경 및 비용 차감 로직
 if temp_location != current_location:
     if temp_location == "희귀 낚시터":
-        if st.session_state.coin >= 30:
-            st.session_state.coin -= 30
+        if st.session_state.coin >= 1000:
+            st.session_state.coin -= 1000
             st.session_state.location = temp_location
             st.success("🔥 희귀 낚시터 입장! (**30코인 차감**)")
         else:
