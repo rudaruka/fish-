@@ -17,6 +17,13 @@ if "location" not in st.session_state:
 if "location_selector" not in st.session_state:
     st.session_state.location_selector = "강가"
 
+# 🛒 아이템 세션 추가
+if "items" not in st.session_state:
+    st.session_state.items = {
+        "강화 미끼": 0,    # 낚시 성공률/희귀도 보정용 (아직 로직 미구현, 수량만 저장)
+        "자동 낚시권": 0   # 자동 낚시 기능용 (아직 로직 미구현, 수량만 저장)
+    }
+
 # ================= 물고기 & 가격 정의 =================
 fish_prob = {
     "멸치": 25, "복어": 25, "누치": 20, "정어리": 15, "붕어": 15,
@@ -42,6 +49,11 @@ for base, fused in fusion_map.items():
 # 💎 희귀 낚시터 전용 특수 아이템 가격 추가
 price_map["오래된 지도 조각"] = 5000 
 
+# 🛒 상점 아이템 정의
+shop_items = {
+    "강화 미끼": {"price": 500, "desc": "희귀 물고기 확률을 소폭 올려줍니다."},
+    "자동 낚시권": {"price": 1000, "desc": "자동으로 낚시를 진행할 수 있는 권한입니다."},
+}
 
 # ================= 함수 정의 =================
 def random_event(event_rate):
@@ -153,7 +165,7 @@ with col1:
             st.session_state.inventory.append(fish)
             st.session_state.fishbook.add(fish)
             st.success(f"**[💎 희귀]** {fish} 을/를 낚았다!")
-            random_event(0.20) # 희귀 낚시터이므로 이벤트 확률 20%로 상향
+            random_event(0.20) 
     
         if st.button("희귀 낚시 (2회)"):
             fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=2)
@@ -161,7 +173,7 @@ with col1:
             for f in fish_caught:
                 st.session_state.fishbook.add(f)
             st.success(f"**[💎 희귀]** {', '.join(fish_caught)} 을/를 낚았다!")
-            random_event(0.35) # 2회 낚시 이벤트 확률 35%로 상향
+            random_event(0.35) 
     else:
         # 일반 낚시터 버튼 (강가, 바다)
         if st.button("1번 낚시"):
@@ -180,10 +192,12 @@ with col1:
             random_event(0.25)
 
 
-# ================= 🎒 인벤토리 (희귀 낚시터 분기 적용) =================
+# ================= 🎒 인벤토리 =================
 with col2:
     st.subheader("🎒 인벤토리")
     
+    # 🎣 물고기/아이템 인벤토리
+    st.markdown("##### 물고기 및 아이템")
     display_inventory = st.session_state.inventory.copy()
 
     # 🌟 희귀 낚시터에서는 정렬 옵션을 숨김
@@ -205,21 +219,30 @@ with col2:
                 reverse=True
             )
     else:
-        # 희귀 낚시터에서는 정렬 없이 기본 순서만 표시
         st.write("✨ **희귀 낚시터**에서는 기본 순서로 표시됩니다.")
 
     st.write("---")
     if display_inventory:
         inventory_count = Counter(display_inventory)
         
-        for fish_name, count in inventory_count.items():
-            price = price_map.get(fish_name, "N/A")
-            st.write(f"**{fish_name}** x **{count}** (판매가: {price} 코인)")
+        for item_name, count in inventory_count.items():
+            price = price_map.get(item_name, "N/A")
+            st.write(f"**{item_name}** x **{count}** (판매가: {price} 코인)")
     else:
         st.info("인벤토리가 비어 있습니다.")
+    
+    st.markdown("---")
+    # 🛒 구매한 아이템 수량 표시
+    st.markdown("##### 구매 아이템")
+    if any(st.session_state.items.values()):
+        for item_name, count in st.session_state.items.items():
+            if count > 0:
+                st.write(f"**{item_name}** x **{count}**")
+    else:
+        st.info("구매한 아이템이 없습니다.")
 
 
-# ================= 상점 =================
+# ================= 🏪 상점 (구매 기능 추가) =================
 with col3:
     st.subheader("🏪 상점")
     open_shop = st.checkbox("상점 열기", value=st.session_state.shop_open)
@@ -228,7 +251,30 @@ with col3:
 st.divider()
 
 if st.session_state.shop_open:
-    st.subheader("🏪 물고기 판매")
+    
+    # 🛒 아이템 구매 섹션
+    st.subheader("🛒 아이템 구매")
+    
+    item_cols = st.columns(len(shop_items))
+    for i, (item_name, data) in enumerate(shop_items.items()):
+        with item_cols[i]:
+            price = data["price"]
+            st.write(f"**{item_name}**")
+            st.write(f"가격: **{price}** 코인")
+            st.caption(data["desc"])
+            
+            if st.button(f"구매 ({item_name})", key=f"buy_{item_name}"):
+                if st.session_state.coin >= price:
+                    st.session_state.coin -= price
+                    st.session_state.items[item_name] += 1
+                    st.success(f"**{item_name}** 1개 구매 완료! 코인 잔액: {st.session_state.coin}")
+                else:
+                    st.error("❗ 코인이 부족하여 구매할 수 없습니다.")
+    
+    st.markdown("---")
+    
+    # 💰 물고기 판매 섹션 (기존 로직)
+    st.subheader("💰 물고기 및 아이템 판매")
     if st.session_state.inventory:
         all_sellable_items = st.session_state.inventory.copy()
         
