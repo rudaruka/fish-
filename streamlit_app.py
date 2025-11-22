@@ -184,7 +184,7 @@ col1,col2,col3 = st.columns(3)
 with col1:
     st.subheader("🎣 낚시하기")
     
-    # 💡 오류 수정: items 딕셔너리를 안전하게 가져옴
+    # items 딕셔너리를 안전하게 가져옴
     items_dict = st.session_state.get("items", {}) 
     current_auto_pass = items_dict.get("자동 낚시권", 0)
     
@@ -233,7 +233,7 @@ with col2:
     st.write("---")
     st.markdown("##### 🛒 구매 아이템 (강화 재료 포함)")
     
-    # 💡 items 딕셔너리를 안전하게 확인하고 표시
+    # items 딕셔너리를 안전하게 확인하고 표시
     items_dict = st.session_state.get("items", {})
     if isinstance(items_dict, dict) and any(items_dict.values()):
         for item, cnt in items_dict.items():
@@ -277,6 +277,7 @@ if st.session_state.shop_open:
             
             # 1. 재료 및 코인 차감 (성공/실패 무관, 버튼이 눌리면 바로 차감)
             st.session_state.coin -= cost['coin']
+            # items는 세션 상태에 존재함이 보장되므로, 딕셔너리 키 접근은 안전
             st.session_state.items["강화 미끼"] -= cost['bait']
             
             # 2. 강화 성공/실패 판정
@@ -309,8 +310,11 @@ if st.session_state.shop_open:
                 if st.session_state.coin >= data["price"]:
                     st.session_state.coin -= data["price"]
                     
-                    # 오류 수정 로직 (안전한 값 증가)
-                    current_count = st.session_state.items.get(item, 0)
+                    # 💡 최종 오류 수정: items 딕셔너리를 안전하게 가져온 후 업데이트
+                    # 버튼이 눌릴 때마다 st.session_state.items를 확인하여 안정성 확보
+                    items_dict_safe = st.session_state.get("items", {}) 
+                    current_count = items_dict_safe.get(item, 0) # 라인 313 오류 수정
+                    
                     st.session_state.items[item] = current_count + 1
                     
                     st.success(f"**{item}** 1개 구매 완료!")
