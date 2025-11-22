@@ -121,6 +121,30 @@ def get_fishing_weights():
         
     return weights
 
+# ================= 🎣 신규 함수: 자동 낚시 =================
+def auto_fish(num_tries=5):
+    """자동 낚시권 1개를 소모하여 num_tries 횟수만큼 낚시를 진행합니다."""
+    
+    # 자동 낚시권이 있는지 확인
+    if st.session_state.items.get("자동 낚시권", 0) <= 0:
+        st.error("자동 낚시권이 없습니다.")
+        return
+        
+    st.session_state.items["자동 낚시권"] -= 1
+    st.info(f"🎫 자동 낚시권 1개를 소모했습니다. ({num_tries}회 낚시 시작)")
+    
+    fish_caught_list = []
+    
+    for _ in range(num_tries):
+        fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
+        catch_fish(fish)
+        fish_caught_list.append(fish)
+        random_event(0.1) # 자동 낚시 시 이벤트 발생 확률은 조금 낮춤
+        
+    st.success(f"✅ 자동 낚시 완료! 잡은 물고기: {', '.join(fish_caught_list)}")
+    st.experimental_rerun()
+
+
 # ================= UI 시작 =================
 st.title("🎣 낚시는 운이야!!")
 st.write(f"💰 현재 코인: **{st.session_state.coin}**")
@@ -156,6 +180,13 @@ col1,col2,col3 = st.columns(3)
 # ================= 🎣 낚시 =================
 with col1:
     st.subheader("🎣 낚시하기")
+    
+    current_auto_pass = st.session_state.items.get("자동 낚시권", 0)
+    
+    # 💡 자동 낚시 버튼 추가 (자동 낚시권이 0개일 때 비활성화)
+    if st.button(f"자동 낚시 (5회 소모)", disabled=(current_auto_pass == 0)):
+        auto_fish(5)
+
     if st.session_state.location == "희귀 낚시터":
         if st.button("희귀 낚시 1회"):
             fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
@@ -274,7 +305,7 @@ if st.session_state.shop_open:
                 if st.session_state.coin >= data["price"]:
                     st.session_state.coin -= data["price"]
                     
-                    # 💡 오류 수정: st.session_state.items에서 안전하게 값을 가져온 후 증가
+                    # 오류 수정 로직 (안전한 값 증가)
                     current_count = st.session_state.items.get(item, 0)
                     st.session_state.items[item] = current_count + 1
                     
