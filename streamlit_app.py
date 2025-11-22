@@ -5,7 +5,7 @@ from collections import Counter
 
 # ================= 세션 초기화 =================
 if "coin" not in st.session_state:
-    st.session_state.coin = 0  # 👈 시작 코인 0 유지
+    st.session_state.coin = 0  # 시작 코인 0 유지
 if "inventory" not in st.session_state:
     st.session_state.inventory = []
 if "shop_open" not in st.session_state:
@@ -26,10 +26,10 @@ fish_prob = {
 
 fish_list = list(fish_prob.keys())
 fish_weights = list(fish_prob.values())
-# 🌟🌟 수정 적용: 판매 가격을 *1로 낮춰 장기 플레이 유도 🌟🌟
-price_map = {fish: (100 - prob) * 1 for fish, prob in fish_prob.items()} # 👈 * 1로 수정
+# 가격 산정 기준 변경: (100 - 확률) * 1로 낮춤 (장기 플레이 유도)
+price_map = {fish: (100 - prob) * 1 for fish, prob in fish_prob.items()}
 
-# ================= 합성 규칙 =================
+# ================= 합성 규칙 및 특수 아이템 정의 =================
 fusion_map = {
     "멸치": "대멸치", "복어": "대복어", "누치": "대누치",
     "정어리": "대정어리", "붕어": "대붕어"
@@ -39,12 +39,19 @@ fusion_map = {
 for base, fused in fusion_map.items():
     price_map[fused] = price_map.get(base, 0) * 5 
 
-# ================= 함수 =================
+# 💎 희귀 낚시터 전용 특수 아이템 가격 추가 💎
+price_map["오래된 지도 조각"] = 5000 
+
+
+# ================= 함수 정의 =================
 def random_event(event_rate):
     """랜덤 이벤트 시스템"""
     if random.random() < event_rate:
         st.info("🎲 랜덤 이벤트 발생!")
-        event = random.randint(1, 4)
+        
+        # 🌟 이벤트 범위 확장: 1~4 (기존) 또는 5 (새로운 보상)
+        event = random.randint(1, 5) 
+        
         if event == 1:
             bonus = random.randint(10, 80)
             st.session_state.coin += bonus
@@ -61,6 +68,13 @@ def random_event(event_rate):
                 st.error(f"🔥 물고기(**{lost}**) 1마리 도망감!")
             else:
                 st.warning("도망갈 물고기가 없어서 아무 일도 일어나지 않았습니다.")
+        elif event == 5 and st.session_state.location == "희귀 낚시터":
+            # 💎 희귀 낚시터 전용 보상: 전설의 아이템
+            item_name = "오래된 지도 조각"
+            st.session_state.inventory.append(item_name)
+            st.session_state.fishbook.add(item_name)
+            st.balloons()
+            st.success(f"🗺️ **전설의 아이템:** **{item_name}** 획득! (판매가 {price_map[item_name]} 코인)")
         else:
             st.success("✨ 신비한 바람이 분다… 좋은 기운이 느껴진다!")
 
@@ -75,9 +89,18 @@ def get_fishing_weights():
         ]
 
     elif st.session_state.location == "희귀 낚시터":
+        # 1. 기본 희귀 물고기 확률 3배
         current_weights = [
             w * 3 if w <= 10 else w
             for w in fish_weights
+        ]
+        
+        # 2. 🌟 희귀 낚시터 전용: 합성 재료 확률 1.5배 보너스
+        fusion_bases = list(fusion_map.keys()) # 멸치, 복어, 누치, 정어리, 붕어
+        
+        current_weights = [
+            w * 1.5 if fish_list[i] in fusion_bases else w
+            for i, w in enumerate(current_weights)
         ]
     
     return current_weights
@@ -184,25 +207,28 @@ st.divider()
 if st.session_state.shop_open:
     st.subheader("🏪 물고기 판매")
     if st.session_state.inventory:
+        # 판매할 수 있는 모든 아이템 목록 (물고기 + 지도 조각)
+        all_sellable_items = st.session_state.inventory.copy()
+        
         selected = st.multiselect(
-            "판매할 물고기 선택", 
-            st.session_state.inventory,
+            "판매할 아이템 선택", 
+            all_sellable_items,
             format_func=lambda x: f"{x} ({price_map.get(x, 'N/A')} 코인)"
         )
         
-        if st.button("선택된 물고기 판매"):
+        if st.button("선택된 아이템 판매"):
             total_price = 0
             
-            for f in selected:
-                price = price_map.get(f, 0)
+            for item in selected:
+                price = price_map.get(item, 0)
                 st.session_state.coin += price
-                st.session_state.inventory.remove(f) 
+                st.session_state.inventory.remove(item) 
                 total_price += price
                 
             if total_price > 0:
-                st.success(f"{len(selected)} 마리 판매 완료! +**{total_price}** 코인")
+                st.success(f"{len(selected)} 개 아이템 판매 완료! +**{total_price}** 코인")
     else:
-        st.warning("팔 물고기가 없습니다!")
+        st.warning("팔 물고기나 아이템이 없습니다!")
 
 # ================= 합성 =================
 st.subheader("⚡ 물고기 합성")
@@ -244,6 +270,17 @@ for i, fish in enumerate(fish_list):
     with cols[i % 5]:
         status = "✔ 발견됨" if fish in st.session_state.fishbook else "✖ 미발견"
         st.write(f"**{fish}** ({status})")
+
+# 💎 특수 아이템 도감 항목 추가
+special_items = ["오래된 지도 조각"]
+if special_items:
+    st.markdown("##### 💎 특수 아이템")
+    cols_special = st.columns(5)
+    for i, item in enumerate(special_items):
+        with cols_special[i % 5]:
+            status = "✔ 발견됨" if item in st.session_state.fishbook else "✖ 미발견"
+            st.write(f"**{item}** ({status})")
+
 
 st.markdown("##### ✨ 합성 물고기")
 fuse_cols = st.columns(5)
