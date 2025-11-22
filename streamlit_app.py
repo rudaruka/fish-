@@ -1,5 +1,29 @@
 import streamlit as st
 import random
+import base64
+import streamlit as st
+
+# ---- 배경 이미지 설정 함수 ----
+def set_background(image_file):
+    with open(image_file, "rb") as f:
+        data = f.read()
+        encoded = base64.b64encode(data).decode()
+
+    css = f"""
+    <style>
+    [data-testid="stAppViewContainer"] {{
+        background-image: url("data:image/jpg;base64,{encoded}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }}
+    [data-testid="stHeader"] {{
+        background: rgba(0,0,0,0);
+    }}
+    </style>
+    """
+    st.markdown(css, unsafe_allow_html=True)
+
 
 # ================= 세션 초기화 =================
 if "coin" not in st.session_state:
