@@ -1,9 +1,16 @@
 import streamlit as st
 import random
 from collections import Counter
-# from PIL import Image # 👈 1. PIL 모듈 제거 (파일 오류 방지)
+# from PIL import Image # 로컬 파일 문제 방지를 위해 주석 처리 유지
 
 # ================= 세션 초기화 =================
+# items가 먼저 정의되도록 순서 조정
+if "items" not in st.session_state:
+    st.session_state.items = {
+        "강화 미끼": 0,
+        "자동 낚시권": 0
+    }
+    
 if "coin" not in st.session_state:
     st.session_state.coin = 0
 if "inventory" not in st.session_state:
@@ -17,11 +24,6 @@ if "location" not in st.session_state:
 if "location_selector" not in st.session_state:
     st.session_state.location_selector = "강가"
 
-if "items" not in st.session_state:
-    st.session_state.items = {
-        "강화 미끼": 0,
-        "자동 낚시권": 0
-    }
 
 # ================= 물고기 & 가격 =================
 fish_prob = {
@@ -123,14 +125,16 @@ if temp_location != current_location:
     else:
         st.session_state.location = temp_location
         st.info(f"📍 낚시터를 {temp_location} 로 변경")
-# else: (현재 위치와 선택된 위치가 같으면 별도 로직 없음)
     
 # 🏞️ 배경 이미지 표시 (주석 처리)
 # try:
 #     img = Image.open(location_images[st.session_state.location])
 #     st.image(img, use_column_width=True)
+# except NameError: # Image 모듈을 사용하지 않았을 경우 대비
+#     pass
 # except FileNotFoundError:
 #     st.info(f"배경 이미지 '{st.session_state.location}'을(를) 찾을 수 없습니다.")
+
 st.markdown(f"**현재 위치:** {st.session_state.location}")
 st.divider()
 
@@ -191,12 +195,18 @@ with col2:
         
     st.write("---")
     st.markdown("##### 🛒 구매 아이템")
-    if any(st.session_state.items.values()):
-        for item, cnt in st.session_state.items.items():
-            if cnt > 0:
-                st.write(f"**{item}** x **{cnt}**")
+    
+    # 💡 오류 방지 로직 적용
+    if "items" in st.session_state and isinstance(st.session_state.items, dict): 
+        if any(st.session_state.items.values()):
+            for item, cnt in st.session_state.items.items():
+                if cnt > 0:
+                    st.write(f"**{item}** x **{cnt}**")
+        else:
+            st.info("구매한 아이템이 없습니다.")
     else:
         st.info("구매한 아이템이 없습니다.")
+        
 
 # ================= 🏪 상점 =================
 with col3:
@@ -227,18 +237,16 @@ if st.session_state.shop_open:
                                   format_func=lambda x: f"{x} ({price_map.get(x,'N/A')} 코인)")
         if st.button("판매 선택 아이템"):
             total = 0
-            # 카운터를 이용하여 중복 판매 로직 수정 (인벤토리에서 제거 시 문제 방지)
-            temp_inventory = st.session_state.inventory.copy()
             
+            # 판매 시 인벤토리에서 항목 제거 및 코인 증가
             for item in selected:
                 price = price_map.get(item,0)
                 total += price
                 
-                # 인벤토리에서 하나만 제거
                 try:
                     st.session_state.inventory.remove(item)
                 except ValueError:
-                    # 이미 제거된 아이템일 경우 무시 (다중 선택 목록에 남아있을 수 있음)
+                    # 인벤토리가 리로드되거나 다른 이유로 항목이 사라진 경우 오류 방지
                     continue
 
             st.session_state.coin += total
