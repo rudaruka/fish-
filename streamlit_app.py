@@ -5,7 +5,7 @@ from collections import Counter
 
 # ================= 세션 초기화 =================
 if "coin" not in st.session_state:
-    st.session_state.coin = 0  # 👈 코인 초기값을 0으로 수정했습니다.
+    st.session_state.coin = 0  # 👈 시작 코인 0 유지
 if "inventory" not in st.session_state:
     st.session_state.inventory = []
 if "shop_open" not in st.session_state:
@@ -26,8 +26,8 @@ fish_prob = {
 
 fish_list = list(fish_prob.keys())
 fish_weights = list(fish_prob.values())
-# 가격 재정의: 확률이 낮을수록 (희귀할수록) 비싸게 책정
-price_map = {fish: (100 - prob) * 2 for fish, prob in fish_prob.items()}
+# 🌟🌟 수정 적용: 판매 가격을 *1로 낮춰 장기 플레이 유도 🌟🌟
+price_map = {fish: (100 - prob) * 1 for fish, prob in fish_prob.items()} # 👈 * 1로 수정
 
 # ================= 합성 규칙 =================
 fusion_map = {
@@ -35,9 +35,9 @@ fusion_map = {
     "정어리": "대정어리", "붕어": "대붕어"
 }
 
-# 합성 물고기 가격
+# 합성 물고기 가격 (일반 물고기 가격의 5배 유지)
 for base, fused in fusion_map.items():
-    price_map[fused] = price_map.get(base, 0) * 5 # 기본 5배로 설정
+    price_map[fused] = price_map.get(base, 0) * 5 
 
 # ================= 함수 =================
 def random_event(event_rate):
@@ -98,7 +98,7 @@ temp_location = st.selectbox(
     key="location_selector"
 )
 
-# 낚시터 변경 및 비용 차감 로직
+# 낚시터 변경 및 비용 차감 로직 (1000 코인 유지)
 if temp_location != current_location:
     if temp_location == "희귀 낚시터":
         if st.session_state.coin >= 1000:
@@ -107,7 +107,6 @@ if temp_location != current_location:
             st.success("🔥 희귀 낚시터 입장! (**1000코인을 차감합니다**)")
         else:
             st.warning("❗ 코인이 부족합니다! (1000코인으로 입장하실 수 있습니다)")
-            # 코인 부족 시 세션 상태를 원래 위치로 되돌려 selectbox도 복구
             st.session_state.location = current_location
             st.session_state.location_selector = current_location
     else:
@@ -144,7 +143,6 @@ with col1:
 with col2:
     st.subheader("🎒 인벤토리")
     
-    # 원본 인벤토리를 복사하여 정렬에 사용 (원본 순서 유지)
     display_inventory = st.session_state.inventory.copy()
 
     sort_option = st.radio(
@@ -156,7 +154,7 @@ with col2:
         display_inventory.sort()
     elif sort_option == "희귀도 순(낮은 확률 먼저)":
         display_inventory.sort(
-            key=lambda x: fish_prob.get(x, 1) # 합성 물고기는 1 (매우 희귀)로 간주
+            key=lambda x: fish_prob.get(x, 1) 
         )
     elif sort_option == "가격 높은 순":
         display_inventory.sort(
@@ -164,7 +162,6 @@ with col2:
             reverse=True
         )
 
-    # 출력은 정렬된 사본을 사용
     st.write("---")
     if display_inventory:
         inventory_count = Counter(display_inventory)
