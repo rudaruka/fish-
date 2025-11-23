@@ -32,15 +32,12 @@ price_map = {fish: (100 - prob) * 1 for fish, prob in fish_prob.items()}
 fusion_map = {
     "멸치": "대멸치", "복어": "대복어", "누치": "대누치",
     "정어리": "대정어리", "붕어": "대붕어",
-    # 🌟 새로운 합성 물고기 추가
     "방어": "대방어", "날치": "대날치", "열기": "대열기"
 }
 
-# 합성 물고기 가격 정의 (기존 물고기 가격의 5배)
 for base, fused in fusion_map.items():
     price_map[fused] = price_map.get(base, 0) * 5
 
-# 🌟 새로운 아이템 및 가격 정의
 price_map["오래된 지도 조각"] = 5000
 price_map["완성된 오래된 지도"] = 50000
 price_map["떡밥"] = 50 
@@ -63,7 +60,6 @@ FUSED_FISH = list(fusion_map.values())
 ALL_COLLECTIBLES = set(fish_list) | set(SPECIAL_ITEMS) | set(FUSED_FISH)
 EXCLUDED_FROM_QUICK_SELL = SPECIAL_ITEMS + FUSED_FISH
 
-# 🎯 희귀 낚시터 입장 조건 수정 (5종의 합성 물고기 각 10마리)
 RARE_LOCATION_COSTS = {
     "coin": 1500,
     "fish": {"대멸치": 10, "대붕어": 10, "대복어": 10, "대방어": 10, "대날치": 10} 
@@ -75,6 +71,8 @@ def initialize_session_state():
         "coin": 0,
         "inventory": [],
         "shop_open": False,
+        "inventory_open": False, # 🌟 추가: 인벤토리 열림 상태
+        "fishbook_open": False,  # 🌟 추가: 도감 열림 상태
         "location": "강가",
         "location_selector": "강가",
         "rod_level": 0,
@@ -138,7 +136,6 @@ def random_event(event_rate):
             st.success(f"🎣 보너스 물고기 **{f2}** 획득!")
         elif event == 3:
             if st.session_state.inventory:
-                # 특수 아이템 제외하고 잃어버릴 물고기 선택
                 losable_items = [i for i in st.session_state.inventory if i not in SPECIAL_ITEMS]
                 if losable_items:
                     lost = random.choice(losable_items)
@@ -187,13 +184,12 @@ def get_fishing_weights():
                 weights[i] *= 3
     elif st.session_state.location == "잃어버린 섬":
         for i, f in enumerate(fish_list):
-            # 심해/전설 물고기 및 킹크랩, 개복치만 출현하도록 집중
             if f in ["킹크랩", "개복치", "메가참치", "번개상어", "심연참돔"]:
                 weights[i] *= 25 
             else:
                 weights[i] /= 10 
             if f in fusion_map:
-                weights[i] *= 0 # 합성 재료는 나오지 않음
+                weights[i] *= 0 
     
     # 2. 낚싯대 보너스 조정 (희귀 물고기만)
     for i, f in enumerate(fish_list):
@@ -343,19 +339,23 @@ with col1:
             st.rerun()
 
 
-# ================= 🎒 인벤토리 =================
+# ================= 🎒 인벤토리 (토글) =================
 with col2:
-    st.subheader("🎒 인벤토리")
-    display_inventory = st.session_state.inventory.copy()
-    st.write("---")
+    # 🌟 인벤토리 토글 기능 추가
+    open_inventory = st.checkbox("🎒 인벤토리 열기", value=st.session_state.inventory_open, key="inventory_open_cb")
+    st.session_state.inventory_open = open_inventory
+    
+    if st.session_state.inventory_open:
+        st.write("---")
+        display_inventory = st.session_state.inventory.copy()
 
-    if display_inventory:
-        counts = Counter(display_inventory)
-        for item, cnt in counts.items():
-            sell_note = " (⚠️수동 전용)" if item in EXCLUDED_FROM_QUICK_SELL else ""
-            st.write(f"**{item}** x {cnt} (판매가: {price_map.get(item,'N/A')} 코인){sell_note}")
-    else:
-        st.info("인벤토리가 비어 있습니다.")
+        if display_inventory:
+            counts = Counter(display_inventory)
+            for item, cnt in counts.items():
+                sell_note = " (⚠️수동 전용)" if item in EXCLUDED_FROM_QUICK_SELL else ""
+                st.write(f"**{item}** x {cnt} (판매가: {price_map.get(item,'N/A')} 코인){sell_note}")
+        else:
+            st.info("인벤토리가 비어 있습니다.")
 
 # ================= 🏪 상점 / 강화 =================
 with col3:
@@ -573,33 +573,37 @@ if fusion_candidates:
 else:
     st.info("합성 가능한 물고기가 없습니다.")
 
-# ================= 📚 도감 =================
+# ================= 📚 도감 (토글) =================
 st.divider()
-st.subheader(f"📚 물고기 도감 ({len(st.session_state.fishbook)}/{len(ALL_COLLECTIBLES)})")
+# 🌟 도감 토글 기능 추가
+open_fishbook = st.checkbox("📚 물고기 도감 열기", value=st.session_state.fishbook_open, key="fishbook_open_cb")
+st.session_state.fishbook_open = open_fishbook
 
-# 물고기 목록을 Prob(희귀도) 순으로 정렬하여 표시 (UX 개선)
-sorted_fish_list = sorted(fish_list, key=lambda f: fish_prob[f], reverse=True)
+if st.session_state.fishbook_open:
+    st.subheader(f"📚 물고기 도감 ({len(st.session_state.fishbook)}/{len(ALL_COLLECTIBLES)})")
 
-st.markdown("##### 🐟 일반/희귀 물고기")
-cols = st.columns(5)
-for i, fish in enumerate(sorted_fish_list):
-    with cols[i % 5]:
-        status = "✔ 발견" if fish in st.session_state.fishbook else "✖ 미발견"
-        st.write(f"**{fish}** ({status}, P:{fish_prob[fish]})")
+    sorted_fish_list = sorted(fish_list, key=lambda f: fish_prob[f], reverse=True)
 
-st.markdown("##### 💎 특수 아이템")
-cols_special = st.columns(5)
-for i, item in enumerate(SPECIAL_ITEMS):
-    with cols_special[i % 5]:
-        status = "✔ 발견" if item in st.session_state.fishbook else "✖ 미발견"
-        st.write(f"**{item}** ({status})")
+    st.markdown("##### 🐟 일반/희귀 물고기")
+    cols = st.columns(5)
+    for i, fish in enumerate(sorted_fish_list):
+        with cols[i % 5]:
+            status = "✔ 발견" if fish in st.session_state.fishbook else "✖ 미발견"
+            st.write(f"**{fish}** ({status}, P:{fish_prob[fish]})")
 
-st.markdown("##### ✨ 합성 물고기")
-fuse_cols = st.columns(5)
-for i, fused in enumerate(FUSED_FISH):
-    with fuse_cols[i % 5]:
-        status = "✔ 발견" if fused in st.session_state.fishbook else "✖ 미발견"
-        st.write(f"**{fused}** ({status})")
+    st.markdown("##### 💎 특수 아이템")
+    cols_special = st.columns(5)
+    for i, item in enumerate(SPECIAL_ITEMS):
+        with cols_special[i % 5]:
+            status = "✔ 발견" if item in st.session_state.fishbook else "✖ 미발견"
+            st.write(f"**{item}** ({status})")
+
+    st.markdown("##### ✨ 합성 물고기")
+    fuse_cols = st.columns(5)
+    for i, fused in enumerate(FUSED_FISH):
+        with fuse_cols[i % 5]:
+            status = "✔ 발견" if fused in st.session_state.fishbook else "✖ 미발견"
+            st.write(f"**{fused}** ({status})")
 
 st.write("---")
 st.write(f"💰 최종 코인: **{st.session_state.coin}**")
