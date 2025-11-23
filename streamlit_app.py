@@ -42,12 +42,10 @@ price_map["오래된 지도 조각"] = 5000
 price_map["완성된 오래된 지도"] = 50000
 price_map["떡밥"] = 50 
 
-# 🎣 물가 상승 정의 (누적 적용)
-INFLATION_TIERS = {
-    1: {"catch_count": 50, "increase": 10},
-    2: {"catch_count": 100, "increase": 100},
-    3: {"catch_count": 150, "increase": 120},
-}
+# 🎣 물가 상승 상수 정의 (지속적 증가)
+MAX_BAIT_INCREASE = 1500 # 최대 가격 상승 한도
+BAIT_INCREASE_STEP = 10  # 1회 상승량
+CATCH_THRESHOLD_FOR_STEP = 10 # 10마리마다 상승
 BAIT_BASE_PRICE = 200
 
 shop_items = {
@@ -90,8 +88,7 @@ def initialize_session_state():
         "fishbook_complete": False,
         "legendary_unlocked": False,
         "lost_island_unlocked": False,
-        "total_fish_caught": 0, # 💡 물가 상승을 위한 총 낚시 마릿수
-        "inflation_level": 0     # 💡 물가 상승 티어
+        "total_fish_caught": 0, # 물가 상승을 위한 총 낚시 마릿수
     }
 
     if "fishbook" not in st.session_state or not isinstance(st.session_state.fishbook, set):
@@ -100,6 +97,8 @@ def initialize_session_state():
     for key, default_value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = default_value
+    
+    # 레벨 기반 인플레이션을 제거했으므로, 관련된 세션 상태 변수 초기화 제거
 
 initialize_session_state()
 
@@ -135,28 +134,29 @@ def check_for_map_completion():
 
 
 def update_bait_price():
-    """물고기 잡은 횟수에 따라 떡밥 가격을 인상합니다."""
+    """총 낚시 마릿수에 따라 떡밥 가격을 지속적으로 인상하고, 최대치(1500)로 제한합니다."""
     
     current_count = st.session_state.total_fish_caught
-    current_level = st.session_state.inflation_level
+    
+    # 1. 10마리당 10 코인씩 오르는 잠재적 인상액 계산
+    # 예: 50마리 -> (50 // 10) * 10 = 50
+    # 예: 105마리 -> (105 // 10) * 10 = 100
+    potential_increase = (current_count // CATCH_THRESHOLD_FOR_STEP) * BAIT_INCREASE_STEP
+    
+    # 2. 최대 상승액 (1500)으로 제한
+    new_increase = min(potential_increase, MAX_BAIT_INCREASE)
+    
     current_increase = shop_items["떡밥"]["price_increase"] 
-    
-    new_increase = current_increase
-    new_level = current_level
-    
-    for level, tier in INFLATION_TIERS.items():
-        if level > current_level and current_count >= tier["catch_count"]:
-            
-            # Apply cumulative increase
-            new_increase += tier["increase"]
-            new_level = level
-            st.toast(f"💰 물가 상승 레벨 {level} 달성! 떡밥 가격 +{tier['increase']} 코인", icon='📈')
 
     if new_increase != current_increase:
+        # 물가 상승이 발생한 경우만 토스트 알림
+        if new_increase > current_increase:
+             st.toast(f"💰 물가 상승! 떡밥 가격 +{new_increase - current_increase} 코인", icon='📈')
+
         shop_items["떡밥"]["price"] = BAIT_BASE_PRICE + new_increase # 실제 가격 업데이트
         shop_items["떡밥"]["price_increase"] = new_increase # 누적 상승액 업데이트
-        st.session_state.inflation_level = new_level
         st.session_state.coin = int(st.session_state.coin) # 코인 정수화 유지
+
 
 def random_event(event_rate, location):
     """
@@ -259,7 +259,7 @@ st.subheader("이게 첫 작품이라고?! 🐟")
 st.write(f"💰 현재 코인: **{int(st.session_state.coin)}**")
 st.write(f"🧵 현재 떡밥: **{st.session_state.bait}개**")
 st.write(f"✨ 낚싯대 레벨: **Lv.{st.session_state.rod_level}**")
-st.caption(f"🐟 **총 낚시 마릿수:** {st.session_state.total_fish_caught}마리") # 낚시 마릿수 표시
+st.caption(f"🐟 **총 낚시 마릿수:** {st.session_state.total_fish_caught}마리") 
 
 if st.session_state.fishbook_complete:
     st.markdown("---")
@@ -378,8 +378,8 @@ with col1:
             catch_fish(fish)
             st.success(f"{prefix}{success_msg_prefix}**{fish}** 낚았다! (남은 떡밥: {st.session_state.bait}개)")
             
-            st.session_state.total_fish_caught += 1 # 💡 카운터 증가
-            update_bait_price() # 💡 가격 업데이트 체크
+            st.session_state.total_fish_caught += 1
+            update_bait_price() 
             
             event_result = random_event(event_rate, current_location)
             if any(event_result.values()):
@@ -396,8 +396,8 @@ with col1:
             for f in fish_caught: catch_fish(f)
             st.success(f"{prefix}{success_msg_prefix}{', '.join(fish_caught)} 낚았다! (남은 떡밥: {st.session_state.bait}개)")
             
-            st.session_state.total_fish_caught += 2 # 💡 카운터 증가
-            update_bait_price() # 💡 가격 업데이트 체크
+            st.session_state.total_fish_caught += 2
+            update_bait_price()
 
             event_result = random_event(event_rate + 0.1, current_location)
             if any(event_result.values()):
@@ -425,10 +425,10 @@ with col1:
                 summary_msg = ', '.join([f'{f} x{c}' for f, c in catch_counts.items()])
                 st.success(f"{prefix}{success_msg_prefix}총 **{bait_count}회** 낚시 성공! ({summary_msg}) (떡밥 모두 소진)")
             
-            st.session_state.total_fish_caught += bait_count # 💡 카운터 증가
-            update_bait_price() # 💡 가격 업데이트 체크
+            st.session_state.total_fish_caught += bait_count
+            update_bait_price() 
 
-            # 2. 이벤트 결과 누적 및 요약 (로직 생략 - 변화 없음)
+            # 2. 이벤트 결과 누적 및 요약
             total_event_summary = {
                 'coin': 0, 'bonus_fish': [], 'lost_fish': [], 
                 'map_pieces': 0, 'special_bonus': 0, 'no_effect': 0
@@ -539,7 +539,7 @@ if st.session_state.shop_open:
     increase = bait_item["price_increase"]
 
     st.write(f"**떡밥** ({BAIT_BASE_PRICE} 코인/개 **+ 물가 상승 {increase} 코인**) -> **{bait_price} 코인/개**")
-    st.caption(bait_item["desc"])
+    st.caption(f"최대 가격은 {BAIT_BASE_PRICE + MAX_BAIT_INCREASE} 코인입니다.")
 
     purchase_qty = st.number_input("구매할 떡밥 개수", min_value=1, value=1, step=1, key="bait_qty")
     total_cost = purchase_qty * bait_price
