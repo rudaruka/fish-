@@ -27,7 +27,6 @@ fish_prob = {
 
 fish_list = list(fish_prob.keys())
 fish_weights = list(fish_prob.values())
-# 가격 계산도 정수로 유지
 price_map = {fish: int((100 - prob) * 1) for fish, prob in fish_prob.items()} 
 
 fusion_map = {
@@ -40,15 +39,25 @@ for base, fused in fusion_map.items():
     price_map[fused] = int(price_map.get(base, 0) * 5)
 
 price_map["오래된 지도 조각"] = 5000
-price_map["완성된 오래된 지도"] = 25000
+price_map["완성된 오래된 지도"] = 50000
 price_map["떡밥"] = 50 
+
+# 🎣 물가 상승 정의 (누적 적용)
+INFLATION_TIERS = {
+    1: {"catch_count": 50, "increase": 10},
+    2: {"catch_count": 100, "increase": 100},
+    3: {"catch_count": 150, "increase": 120},
+}
+BAIT_BASE_PRICE = 200
 
 shop_items = {
     "떡밥": {
-        "price": 50,
-        "desc": "낚시 1회당 1개 필요!"
+        "price": BAIT_BASE_PRICE,
+        "desc": "낚시 1회당 1개 필요!",
+        "price_increase": 0 # 물가 상승 누적액
     }
 }
+
 
 ROD_UPGRADE_COSTS = {
     1: {"coin": 2000, "success_rate": 0.8},
@@ -69,7 +78,7 @@ RARE_LOCATION_COSTS = {
 # ================= 1. 세션 초기화 =================
 def initialize_session_state():
     defaults = {
-        "coin": 0, # 시작 코인은 정수
+        "coin": 0,
         "inventory": [],
         "shop_open": False,
         "inventory_open": False, 
@@ -80,7 +89,9 @@ def initialize_session_state():
         "bait": 4, 
         "fishbook_complete": False,
         "legendary_unlocked": False,
-        "lost_island_unlocked": False
+        "lost_island_unlocked": False,
+        "total_fish_caught": 0, # 💡 물가 상승을 위한 총 낚시 마릿수
+        "inflation_level": 0     # 💡 물가 상승 티어
     }
 
     if "fishbook" not in st.session_state or not isinstance(st.session_state.fishbook, set):
@@ -123,6 +134,30 @@ def check_for_map_completion():
     st.toast("🏝️ 잃어버린 섬 해금!", icon='🗺️')
 
 
+def update_bait_price():
+    """물고기 잡은 횟수에 따라 떡밥 가격을 인상합니다."""
+    
+    current_count = st.session_state.total_fish_caught
+    current_level = st.session_state.inflation_level
+    current_increase = shop_items["떡밥"]["price_increase"] 
+    
+    new_increase = current_increase
+    new_level = current_level
+    
+    for level, tier in INFLATION_TIERS.items():
+        if level > current_level and current_count >= tier["catch_count"]:
+            
+            # Apply cumulative increase
+            new_increase += tier["increase"]
+            new_level = level
+            st.toast(f"💰 물가 상승 레벨 {level} 달성! 떡밥 가격 +{tier['increase']} 코인", icon='📈')
+
+    if new_increase != current_increase:
+        shop_items["떡밥"]["price"] = BAIT_BASE_PRICE + new_increase # 실제 가격 업데이트
+        shop_items["떡밥"]["price_increase"] = new_increase # 누적 상승액 업데이트
+        st.session_state.inflation_level = new_level
+        st.session_state.coin = int(st.session_state.coin) # 코인 정수화 유지
+
 def random_event(event_rate, location):
     """
     랜덤 이벤트를 발생시키고 결과를 요약 딕셔너리로 반환합니다. 
@@ -138,7 +173,7 @@ def random_event(event_rate, location):
         
         if event == 1: # 코인 보너스
             bonus = random.randint(10, 80)
-            st.session_state.coin = int(st.session_state.coin + bonus) # 💡 코인 정수화
+            st.session_state.coin = int(st.session_state.coin + bonus) 
             summary['coin'] += bonus
         
         elif event == 2: # 물고기 보너스
@@ -164,11 +199,11 @@ def random_event(event_rate, location):
             summary['map_pieces'] += 1
             
         elif event == 5 and location == "전설의 해역": # 전설 해역 보너스 코인
-            st.session_state.coin = int(st.session_state.coin + 500) # 💡 코인 정수화
+            st.session_state.coin = int(st.session_state.coin + 500) 
             summary['special_bonus'] += 500
         
         elif event == 5 and location == "잃어버린 섬": # 잃어버린 섬 보너스 코인
-            st.session_state.coin = int(st.session_state.coin + 1500) # 💡 코인 정수화
+            st.session_state.coin = int(st.session_state.coin + 1500) 
             summary['special_bonus'] += 1500
             
         else: # 기타 긍정적 효과 (메시지 대신 누적)
@@ -181,7 +216,7 @@ def get_fishing_weights():
     weights = fish_weights.copy()
     rod_bonus_multiplier = 1 + (st.session_state.rod_level * 0.2)
 
-    # 1. 위치별 가중치 조정
+    # 1. 위치별 가중치 조정 (로직 생략 - 변화 없음)
     if st.session_state.location == "바다":
         for i, f in enumerate(fish_list):
             if f in ["고등어", "전갱이", "꽁치", "우럭", "삼치", "참치", "광어", "도미", "농어", "갈치", "병어", "청새치", "황새치", "랍스터", "킹크랩"]:
@@ -221,10 +256,10 @@ def get_fishing_weights():
 st.title("🎣 낚시터에 오신 것을 환영합니다!!")
 st.subheader("이게 첫 작품이라고?! 🐟")
 
-# 코인 출력도 int()로 한 번 더 감싸서 안전하게 출력
 st.write(f"💰 현재 코인: **{int(st.session_state.coin)}**")
 st.write(f"🧵 현재 떡밥: **{st.session_state.bait}개**")
 st.write(f"✨ 낚싯대 레벨: **Lv.{st.session_state.rod_level}**")
+st.caption(f"🐟 **총 낚시 마릿수:** {st.session_state.total_fish_caught}마리") # 낚시 마릿수 표시
 
 if st.session_state.fishbook_complete:
     st.markdown("---")
@@ -234,8 +269,7 @@ if st.session_state.lost_island_unlocked:
 st.divider()
 
 # ================= 낚시터 선택 =================
-st.subheader("🌍 낚시터 선택")
-
+# (로직 생략 - 변화 없음)
 current_location = st.session_state.location
 
 LOCATIONS = ["강가", "바다", "희귀 낚시터"]
@@ -283,7 +317,7 @@ if temp_location != current_location:
             
             if can_enter_by_coin:
                 if st.button(f"💰 코인 소모 입장 ({required_coin} 코인)", key="enter_rare_coin"):
-                    st.session_state.coin = int(st.session_state.coin - required_coin) # 💡 코인 정수화
+                    st.session_state.coin = int(st.session_state.coin - required_coin)
                     st.session_state.location = temp_location
                     st.success(f"🔥 희귀 낚시터 입장! (-{required_coin} 코인)")
                     st.rerun() 
@@ -344,6 +378,9 @@ with col1:
             catch_fish(fish)
             st.success(f"{prefix}{success_msg_prefix}**{fish}** 낚았다! (남은 떡밥: {st.session_state.bait}개)")
             
+            st.session_state.total_fish_caught += 1 # 💡 카운터 증가
+            update_bait_price() # 💡 가격 업데이트 체크
+            
             event_result = random_event(event_rate, current_location)
             if any(event_result.values()):
                 st.info("🎲 랜덤 이벤트 발동!")
@@ -359,6 +396,9 @@ with col1:
             for f in fish_caught: catch_fish(f)
             st.success(f"{prefix}{success_msg_prefix}{', '.join(fish_caught)} 낚았다! (남은 떡밥: {st.session_state.bait}개)")
             
+            st.session_state.total_fish_caught += 2 # 💡 카운터 증가
+            update_bait_price() # 💡 가격 업데이트 체크
+
             event_result = random_event(event_rate + 0.1, current_location)
             if any(event_result.values()):
                 st.info("🎲 랜덤 이벤트 발동!")
@@ -385,7 +425,10 @@ with col1:
                 summary_msg = ', '.join([f'{f} x{c}' for f, c in catch_counts.items()])
                 st.success(f"{prefix}{success_msg_prefix}총 **{bait_count}회** 낚시 성공! ({summary_msg}) (떡밥 모두 소진)")
             
-            # 2. 이벤트 결과 누적 및 요약
+            st.session_state.total_fish_caught += bait_count # 💡 카운터 증가
+            update_bait_price() # 💡 가격 업데이트 체크
+
+            # 2. 이벤트 결과 누적 및 요약 (로직 생략 - 변화 없음)
             total_event_summary = {
                 'coin': 0, 'bonus_fish': [], 'lost_fish': [], 
                 'map_pieces': 0, 'special_bonus': 0, 'no_effect': 0
@@ -437,6 +480,7 @@ with col1:
 
 # ================= 🎒 인벤토리 (토글) =================
 with col2:
+    # (로직 생략 - 변화 없음)
     open_inventory = st.checkbox("🎒 인벤토리 열기", value=st.session_state.inventory_open, key="inventory_open_cb")
     st.session_state.inventory_open = open_inventory
     
@@ -477,7 +521,7 @@ if st.session_state.shop_open:
 
         can_upgrade = st.session_state.coin >= cost['coin']
         if st.button(f"Lv.{next_level} 강화 시도", disabled=not can_upgrade, key=f"upgrade_{next_level}"):
-            st.session_state.coin = int(st.session_state.coin - cost['coin']) # 💡 코인 정수화
+            st.session_state.coin = int(st.session_state.coin - cost['coin'])
             if random.random() < cost['success_rate']:
                 st.session_state.rod_level = next_level
                 st.success(f"🎉 강화 성공! Lv.{next_level}")
@@ -492,8 +536,9 @@ if st.session_state.shop_open:
     
     bait_item = shop_items["떡밥"]
     bait_price = bait_item["price"]
+    increase = bait_item["price_increase"]
 
-    st.write(f"**떡밥** ({bait_price} 코인/개)")
+    st.write(f"**떡밥** ({BAIT_BASE_PRICE} 코인/개 **+ 물가 상승 {increase} 코인**) -> **{bait_price} 코인/개**")
     st.caption(bait_item["desc"])
 
     purchase_qty = st.number_input("구매할 떡밥 개수", min_value=1, value=1, step=1, key="bait_qty")
@@ -505,7 +550,7 @@ if st.session_state.shop_open:
 
     if st.button(f"떡밥 {purchase_qty}개 구매", key="buy_bait_multi", disabled=not can_purchase):
         if can_purchase:
-            st.session_state.coin = int(st.session_state.coin - total_cost) # 💡 코인 정수화
+            st.session_state.coin = int(st.session_state.coin - total_cost)
             st.session_state.bait += purchase_qty
             st.success(f"떡밥 {purchase_qty}개 구매 완료! (-{total_cost} 코인)")
             st.rerun()
@@ -515,6 +560,7 @@ if st.session_state.shop_open:
     st.markdown("---")
     
     # --- 판매 ---
+    # (로직 생략 - 변화 없음)
     st.subheader("💰 판매")
     
     if st.session_state.inventory:
@@ -540,7 +586,7 @@ if st.session_state.shop_open:
                     for _ in range(qty):
                         st.session_state.inventory.remove(item)
                         
-                st.session_state.coin = int(st.session_state.coin + total_sell_coin) # 💡 코인 정수화
+                st.session_state.coin = int(st.session_state.coin + total_sell_coin)
                 st.success(f"총 {total_items_sold}마리 판매 완료! +{total_sell_coin} 코인")
                 st.rerun()
                 
@@ -571,13 +617,14 @@ if st.session_state.shop_open:
                 total += price_map.get(item, 0) * sell_qty
 
             if total > 0:
-                st.session_state.coin = int(st.session_state.coin + total) # 💡 코인 정수화
+                st.session_state.coin = int(st.session_state.coin + total)
                 st.success(f"{items_sold_count}개 판매 완료! +{total} 코인")
                 st.rerun()
     else:
         st.warning("판매할 아이템이 없습니다.")
 
 # ================= 🔧 떡밥 제작 =================
+# (로직 생략 - 변화 없음)
 st.divider()
 st.subheader("🧵 떡밥 제작")
 st.caption("동일한 물고기 2마리를 갈아서 떡밥 1개로 만듭니다. (저렴한 물고기를 사용하는 것이 유리합니다.)")
@@ -644,6 +691,7 @@ else:
     st.info("수동 제작 가능한 물고기가 없습니다. (동일 물고기 2마리 필요)")
 
 # ================= ⚡ 지도 조각 합성 =================
+# (로직 생략 - 변화 없음)
 st.subheader("🧭 지도 조각 합성")
 MAP_PIECE_COUNT = counts.get("오래된 지도 조각", 0)
 MAP_PIECES_REQUIRED = 10
@@ -669,6 +717,7 @@ if st.button("🗺️ 완성된 오래된 지도 제작 (조각 10개 소모)", 
 
 
 # ================= ⚡ 물고기 합성 =================
+# (로직 생략 - 변화 없음)
 st.subheader("⚡ 물고기 합성")
 
 counts = Counter(st.session_state.inventory)
@@ -706,6 +755,7 @@ else:
     st.info("합성 가능한 물고기가 없습니다.")
 
 # ================= 📚 도감 (토글) =================
+# (로직 생략 - 변화 없음)
 st.divider()
 open_fishbook = st.checkbox("📚 물고기 도감 열기", value=st.session_state.fishbook_open, key="fishbook_open_cb")
 st.session_state.fishbook_open = open_fishbook
