@@ -3,11 +3,9 @@ import random
 from collections import Counter
 
 # ================= 1. 세션 초기화 (최대 강화 로직) =================
-# 모든 세션 변수가 존재하고 올바른 타입임을 보장하는 함수
 def initialize_session_state():
     """
     st.session_state의 모든 필수 변수들을 초기화하고, 
-    만약 잘못된 타입이 할당되었을 경우 올바른 기본값으로 재설정하여 
     AttributeError를 방지합니다.
     """
     
@@ -20,11 +18,7 @@ def initialize_session_state():
         "rod_level": 0
     }
     
-    # 딕셔너리 타입 검사 및 초기화
-    if "items" not in st.session_state or not isinstance(st.session_state.items, dict):
-        st.session_state.items = {
-            "강화 미끼": 0,
-        }
+    # 딕셔너리 'items' 제거됨
     
     # Set 타입 검사 및 초기화 (fishbook)
     if "fishbook" not in st.session_state or not isinstance(st.session_state.fishbook, set):
@@ -58,14 +52,14 @@ for base, fused in fusion_map.items():
 
 price_map["오래된 지도 조각"] = 5000
 
-shop_items = {
-    "강화 미끼": {"price": 500, "desc": "낚싯대 강화에 필요한 핵심 재료입니다."},
-}
+# 아이템 제거됨
+shop_items = {} 
 
+# 낚싯대 강화 비용에서 'bait' 제거됨
 ROD_UPGRADE_COSTS = {
-    1: {"coin": 2000, "bait": 2, "success_rate": 0.8},
-    2: {"coin": 4000, "bait": 4, "success_rate": 0.6},
-    3: {"coin": 8000, "bait": 8, "success_rate": 0.4},
+    1: {"coin": 2000, "success_rate": 0.8},
+    2: {"coin": 4000, "success_rate": 0.6},
+    3: {"coin": 8000, "success_rate": 0.4},
 }
 
 # ================= 3. 함수 정의 =================
@@ -116,7 +110,6 @@ def get_fishing_weights():
         for i, w in enumerate(weights)
     ]
     return weights
-
 
 # ================= 4. UI 렌더링 =================
 st.title("🎣 낚시는 운이야!!")
@@ -187,20 +180,8 @@ with col2:
             st.write(f"**{item}** x **{cnt}** (판매가: {price_map.get(item,'N/A')} 코인)")
     else:
         st.info("인벤토리가 비어 있습니다.")
-    st.write("---")
-    st.subheader("🛒 구매 아이템")
     
-    # 🌟 수정된 안전 로직 🌟
-    # st.session_state.items가 딕셔너리가 아닐 경우 (None일 경우 포함) 빈 딕셔너리로 대체
-    items_dict = st.session_state.items if isinstance(st.session_state.items, dict) else {}
-    
-    # 이제 items_dict는 항상 딕셔너리이므로 .values() 호출이 안전함
-    if any(items_dict.values()):
-        for item, cnt in items_dict.items():
-            if cnt > 0:
-                st.write(f"**{item}** x **{cnt}**")
-    else:
-        st.info("구매한 아이템이 없습니다.")
+    # 구매 아이템 섹션 제거됨
 
 # ================= 🏪 상점 / 강화 =================
 with col3:
@@ -217,44 +198,43 @@ if st.session_state.shop_open:
     next_level = current_level + 1
     if next_level in ROD_UPGRADE_COSTS:
         cost = ROD_UPGRADE_COSTS[next_level]
-        # 안전하게 강화 미끼 수량 조회
-        # st.session_state.items가 딕셔너리임을 보장하는 안전한 get 호출
-        current_bait = st.session_state.items.get("강화 미끼", 0)
         
         st.write(f"**현재 레벨: Lv.{current_level}**")
         st.write(f"**다음 레벨: Lv.{next_level}**")
         st.write(f"필요 코인: **{cost['coin']}** (현재: {st.session_state.coin})")
-        st.write(f"필요 강화 미끼: **{cost['bait']}** (현재: {current_bait})")
+        # 강화 미끼 요구사항 제거됨
         st.write(f"성공 확률: **{int(cost['success_rate']*100)}%**")
-        can_upgrade = st.session_state.coin >= cost['coin'] and current_bait >= cost['bait']
+        
+        # 강화 미끼 조건 제거됨
+        can_upgrade = st.session_state.coin >= cost['coin'] 
         if st.button(f"Lv.{next_level} 강화 시도", key=f"upgrade_{next_level}", disabled=not can_upgrade):
             st.session_state.coin -= cost['coin']
-            st.session_state.items["강화 미끼"] -= cost['bait']
+            # 강화 미끼 소모 로직 제거됨
             if random.random() < cost['success_rate']:
                 st.session_state.rod_level = next_level
                 st.success(f"🎉 **강화 성공!** 낚싯대 Lv.{next_level}")
             else:
-                st.error("💥 **강화 실패!** 재료만 소모")
+                st.error("💥 **강화 실패!** 코인만 소모")
     else:
         st.info(f"낚싯대가 **최고 레벨 Lv.{current_level}**입니다!")
 
     ## 아이템 구매
     st.subheader("🛒 아이템 구매")
-    shop_cols = st.columns(2)
-    
-    for i,(item,data) in enumerate(shop_items.items()):
-        with shop_cols[i%2]:
-            st.write(f"**{item}** ({data['price']} 코인)")
-            st.caption(data["desc"])
-            if st.button(f"구매 {item}", key=f"buy_{item}"):
-                if st.session_state.coin >= data["price"]:
-                    st.session_state.coin -= data["price"]
-                    
-                    current_count = st.session_state.items.get(item, 0)
-                    st.session_state.items[item] = current_count + 1
-                    st.success(f"**{item}** 1개 구매 완료!")
-                else:
-                    st.error("❗ 코인 부족!")
+    if not shop_items:
+        st.info("현재 구매 가능한 아이템이 없습니다.")
+    else:
+        # 이 부분은 현재 비어 있지만, 혹시 나중에 아이템이 추가될 경우를 대비해 구조는 유지
+        shop_cols = st.columns(2)
+        for i,(item,data) in enumerate(shop_items.items()):
+            with shop_cols[i%2]:
+                st.write(f"**{item}** ({data['price']} 코인)")
+                st.caption(data["desc"])
+                if st.button(f"구매 {item}", key=f"buy_{item}"):
+                    if st.session_state.coin >= data["price"]:
+                        st.session_state.coin -= data["price"]
+                        st.success(f"**{item}** 1개 구매 완료!")
+                    else:
+                        st.error("❗ 코인 부족!")
 
     ## 판매
     st.subheader("💰 판매")
