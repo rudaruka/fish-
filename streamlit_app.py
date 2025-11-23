@@ -44,7 +44,7 @@ price_map["떡밥"] = 50
 
 shop_items = {
     "떡밥": {
-        "price": 200,
+        "price": 50,
         "desc": "낚시 1회당 1개 필요!"
     }
 }
