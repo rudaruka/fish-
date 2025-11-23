@@ -2,37 +2,30 @@ import streamlit as st
 import random
 from collections import Counter
 
-# ================= 1. 세션 초기화 (최대 강화 로직) =================
-def initialize_session_state():
-    """
-    st.session_state의 모든 필수 변수들을 초기화하고, 
-    AttributeError를 방지합니다.
-    """
-    
-    defaults = {
-        "coin": 0,
-        "inventory": [],
-        "shop_open": False,
-        "location": "강가",
-        "location_selector": "강가",
-        "rod_level": 0
+# ================= 세션 초기화 (강화됨) =================
+# items가 딕셔너리임을 확실히 보장합니다.
+if "items" not in st.session_state or not isinstance(st.session_state.items, dict):
+    st.session_state.items = {
+        "강화 미끼": 0,
+        "자동 낚시권": 0
     }
     
-    # 딕셔너리 'items' 제거됨
-    
-    # Set 타입 검사 및 초기화 (fishbook)
-    if "fishbook" not in st.session_state or not isinstance(st.session_state.fishbook, set):
-        st.session_state.fishbook = set()
+if "coin" not in st.session_state:
+    st.session_state.coin = 0
+if "inventory" not in st.session_state:
+    st.session_state.inventory = []
+if "shop_open" not in st.session_state:
+    st.session_state.shop_open = False
+if "fishbook" not in st.session_state:
+    st.session_state.fishbook = set()
+if "location" not in st.session_state:
+    st.session_state.location = "강가"
+if "location_selector" not in st.session_state:
+    st.session_state.location_selector = "강가"
+if "rod_level" not in st.session_state:
+    st.session_state.rod_level = 0
 
-    # 나머지 기본 변수 초기화
-    for key, default_value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = default_value
-
-# 🚨 앱이 실행될 때 Streamlit 스크립트의 최상단에서 초기화 함수를 호출합니다.
-initialize_session_state()
-
-# ================= 2. 물고기 & 가격 정의 =================
+# ================= 물고기 & 가격 =================
 fish_prob = {
     "멸치": 25, "복어": 25, "누치": 20, "정어리": 15, "붕어": 15,
     "빙어": 10, "북어": 10, "전갱이": 10, "꽁치": 10, "은어": 8,
@@ -52,17 +45,18 @@ for base, fused in fusion_map.items():
 
 price_map["오래된 지도 조각"] = 5000
 
-# 아이템 제거됨
-shop_items = {} 
-
-# 낚싯대 강화 비용에서 'bait' 제거됨
-ROD_UPGRADE_COSTS = {
-    1: {"coin": 2000, "success_rate": 0.8},
-    2: {"coin": 4000, "success_rate": 0.6},
-    3: {"coin": 8000, "success_rate": 0.4},
+shop_items = {
+    "강화 미끼": {"price": 500, "desc": "낚싯대 강화에 필요한 핵심 재료입니다."},
+    "자동 낚시권": {"price": 1000, "desc": "자동으로 낚시를 진행할 수 있는 권한입니다."},
 }
 
-# ================= 3. 함수 정의 =================
+ROD_UPGRADE_COSTS = {
+    1: {"coin": 2000, "bait": 2, "success_rate": 0.8},
+    2: {"coin": 4000, "bait": 4, "success_rate": 0.6},
+    3: {"coin": 8000, "bait": 8, "success_rate": 0.4},
+}
+
+# ================= 함수 =================
 def catch_fish(fish):
     st.session_state.inventory.append(fish)
     st.session_state.fishbook.add(fish)
@@ -111,7 +105,26 @@ def get_fishing_weights():
     ]
     return weights
 
-# ================= 4. UI 렌더링 =================
+def auto_fish(num_tries=5):
+    items_dict = st.session_state.get("items", {})
+    if items_dict.get("자동 낚시권", 0) <= 0:
+        st.error("자동 낚시권이 없습니다.")
+        return
+    
+    # items는 초기화 로직에 의해 딕셔너리임을 보장
+    st.session_state.items["자동 낚시권"] -= 1
+    st.info(f"🎫 자동 낚시권 1개를 소모했습니다. ({num_tries}회 낚시 시작)")
+    
+    fish_caught_list = []
+    for _ in range(num_tries):
+        fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
+        catch_fish(fish)
+        fish_caught_list.append(fish)
+        random_event(0.1)
+        
+    st.success(f"✅ 자동 낚시 완료! 잡은 물고기: {', '.join(fish_caught_list)}")
+
+# ================= UI =================
 st.title("🎣 낚시는 운이야!!")
 st.write(f"💰 현재 코인: **{st.session_state.coin}**")
 st.write(f"✨ 낚싯대 레벨: **Lv.{st.session_state.rod_level}**")
@@ -145,7 +158,13 @@ col1,col2,col3 = st.columns(3)
 # ================= 🎣 낚시 =================
 with col1:
     st.subheader("🎣 낚시하기")
+    # items에 안전하게 접근
+    items_dict = st.session_state.get("items", {}) 
+    current_auto_pass = items_dict.get("자동 낚시권", 0)
     
+    if st.button(f"자동 낚시 (5회 소모)", key="auto_fish_btn", disabled=(current_auto_pass == 0)):
+        auto_fish(5)
+
     if st.session_state.location == "희귀 낚시터":
         if st.button("희귀 낚시 1회", key="rare_1"):
             fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
@@ -180,8 +199,16 @@ with col2:
             st.write(f"**{item}** x **{cnt}** (판매가: {price_map.get(item,'N/A')} 코인)")
     else:
         st.info("인벤토리가 비어 있습니다.")
-    
-    # 구매 아이템 섹션 제거됨
+    st.write("---")
+    st.subheader("🛒 구매 아이템")
+    # items 딕셔너리를 안전하게 가져와서 표시
+    items_dict = st.session_state.get("items", {})
+    if any(items_dict.values()):
+        for item, cnt in items_dict.items():
+            if cnt>0:
+                st.write(f"**{item}** x **{cnt}**")
+    else:
+        st.info("구매한 아이템이 없습니다.")
 
 # ================= 🏪 상점 / 강화 =================
 with col3:
@@ -192,51 +219,67 @@ with col3:
 st.divider()
 
 if st.session_state.shop_open:
-    ## 낚싯대 강화
+    # 낚싯대 강화
     st.subheader("🛠️ 낚싯대 강화")
     current_level = st.session_state.rod_level
     next_level = current_level + 1
     if next_level in ROD_UPGRADE_COSTS:
         cost = ROD_UPGRADE_COSTS[next_level]
+        # items에 안전하게 접근
+        items_dict = st.session_state.get("items", {}) 
+        current_bait = items_dict.get("강화 미끼", 0)
         
         st.write(f"**현재 레벨: Lv.{current_level}**")
         st.write(f"**다음 레벨: Lv.{next_level}**")
         st.write(f"필요 코인: **{cost['coin']}** (현재: {st.session_state.coin})")
-        # 강화 미끼 요구사항 제거됨
+        st.write(f"필요 강화 미끼: **{cost['bait']}** (현재: {current_bait})")
         st.write(f"성공 확률: **{int(cost['success_rate']*100)}%**")
-        
-        # 강화 미끼 조건 제거됨
-        can_upgrade = st.session_state.coin >= cost['coin'] 
+        can_upgrade = st.session_state.coin >= cost['coin'] and current_bait >= cost['bait']
         if st.button(f"Lv.{next_level} 강화 시도", key=f"upgrade_{next_level}", disabled=not can_upgrade):
             st.session_state.coin -= cost['coin']
-            # 강화 미끼 소모 로직 제거됨
+            # 초기화로 인해 안전하다고 가정
+            st.session_state.items["강화 미끼"] -= cost['bait']
             if random.random() < cost['success_rate']:
                 st.session_state.rod_level = next_level
                 st.success(f"🎉 **강화 성공!** 낚싯대 Lv.{next_level}")
             else:
-                st.error("💥 **강화 실패!** 코인만 소모")
+                st.error("💥 **강화 실패!** 재료만 소모")
     else:
         st.info(f"낚싯대가 **최고 레벨 Lv.{current_level}**입니다!")
 
-    ## 아이템 구매
+    # 아이템 구매
     st.subheader("🛒 아이템 구매")
-    if not shop_items:
-        st.info("현재 구매 가능한 아이템이 없습니다.")
-    else:
-        # 이 부분은 현재 비어 있지만, 혹시 나중에 아이템이 추가될 경우를 대비해 구조는 유지
-        shop_cols = st.columns(2)
-        for i,(item,data) in enumerate(shop_items.items()):
-            with shop_cols[i%2]:
-                st.write(f"**{item}** ({data['price']} 코인)")
-                st.caption(data["desc"])
-                if st.button(f"구매 {item}", key=f"buy_{item}"):
-                    if st.session_state.coin >= data["price"]:
-                        st.session_state.coin -= data["price"]
+    shop_cols = st.columns(2)
+    for i,(item,data) in enumerate(shop_items.items()):
+        with shop_cols[i%2]:
+            st.write(f"**{item}** ({data['price']} 코인)")
+            st.caption(data["desc"])
+            if st.button(f"구매 {item}", key=f"buy_{item}"):
+                if st.session_state.coin >= data["price"]:
+                    st.session_state.coin -= data["price"]
+                    
+                    # 💡 최종 수정 로직: 오류 발생 시, 초기화 값으로 강제 복구 후 즉시 리런
+                    try:
+                        # 안전하게 get() 및 할당 시도
+                        current_count = st.session_state.items.get(item, 0)
+                        st.session_state.items[item] = current_count + 1
                         st.success(f"**{item}** 1개 구매 완료!")
-                    else:
-                        st.error("❗ 코인 부족!")
+                    except (AttributeError, TypeError):
+                        # ❌ 치명적인 오류 발생 시 ❌
+                        st.error("❌ 아이템 구매 중 세션 상태 오류 발생! 앱 상태를 재설정하고 다시 로드합니다. 다시 시도해 주세요.")
+                        
+                        # items를 초기 정의 값으로 강제 재설정 (get() 호출 제거!)
+                        st.session_state.items = {
+                            "강화 미끼": 0,
+                            "자동 낚시권": 0
+                        }
+                        # st.experimental_rerun()으로 깨끗한 상태에서 스크립트를 처음부터 다시 시작
+                        st.experimental_rerun()
 
-    ## 판매
+                else:
+                    st.error("❗ 코인 부족!")
+
+    # 판매
     st.subheader("💰 판매")
     if st.session_state.inventory:
         selected = st.multiselect("판매할 아이템 선택", st.session_state.inventory,
@@ -257,7 +300,6 @@ if st.session_state.shop_open:
         st.warning("판매할 아이템이 없습니다.")
 
 # ================= ⚡ 합성 =================
-st.divider()
 st.subheader("⚡ 물고기 합성")
 counts = Counter(st.session_state.inventory)
 fusion_candidates = [f for f in fusion_map.keys() if counts.get(f,0)>=2]
@@ -280,7 +322,6 @@ else:
     st.info("합성 가능한 물고기가 없습니다. (2마리 필요)")
 
 # ================= 📚 도감 =================
-st.divider()
 st.subheader("📚 물고기 도감")
 st.markdown("##### 🐟 일반 물고기")
 cols = st.columns(5)
