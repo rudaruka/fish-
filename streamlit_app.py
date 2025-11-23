@@ -71,8 +71,8 @@ def initialize_session_state():
         "coin": 0,
         "inventory": [],
         "shop_open": False,
-        "inventory_open": False, # 🌟 추가: 인벤토리 열림 상태
-        "fishbook_open": False,  # 🌟 추가: 도감 열림 상태
+        "inventory_open": False, 
+        "fishbook_open": False,  
         "location": "강가",
         "location_selector": "강가",
         "rod_level": 0,
@@ -341,7 +341,6 @@ with col1:
 
 # ================= 🎒 인벤토리 (토글) =================
 with col2:
-    # 🌟 인벤토리 토글 기능 추가
     open_inventory = st.checkbox("🎒 인벤토리 열기", value=st.session_state.inventory_open, key="inventory_open_cb")
     st.session_state.inventory_open = open_inventory
     
@@ -492,6 +491,44 @@ counts = Counter(st.session_state.inventory)
 excluded_items_craft = list(fusion_map.values()) + SPECIAL_ITEMS
 craft_candidates = [f for f, count in counts.items() if count >= 2 and f not in excluded_items_craft]
 
+# 🌟 1. 떡밥 전체 제작 로직
+st.markdown("##### ⚡ 떡밥 전체 제작 (최적 재료 사용)")
+
+# 판매가가 가장 낮은 물고기를 찾습니다 (가장 효율적인 재료)
+best_craft_fish = None
+min_price = float('inf')
+
+# 떡밥 제작 가능 항목 중 가장 저렴한 것을 찾기
+for fish, count in counts.items():
+    if count >= 2 and fish not in excluded_items_craft:
+        price = price_map.get(fish, float('inf'))
+        if price < min_price:
+            min_price = price
+            best_craft_fish = fish
+
+if best_craft_fish:
+    max_craftable = counts.get(best_craft_fish, 0) // 2
+    
+    st.write(f"✅ **최적의 제작 재료:** **{best_craft_fish}** (판매가: {min_price} 코인)")
+    st.write(f"최대 제작 가능 떡밥: **{max_craftable}개** (재료: {best_craft_fish} {max_craftable * 2}개 소모)")
+
+    if st.button(f"🧵 {best_craft_fish} 전체 사용하여 떡밥 {max_craftable}개 제작", key="craft_all_btn"):
+        total_fish_needed = max_craftable * 2
+        
+        for _ in range(total_fish_needed):
+            st.session_state.inventory.remove(best_craft_fish)
+            
+        st.session_state.bait += max_craftable
+        st.success(f"**{best_craft_fish}** {total_fish_needed}개 분쇄 완료! 🧵 **떡밥 {max_craftable}개** 획득!")
+        st.rerun()
+else:
+    st.info("현재 떡밥 전체 제작에 사용할 수 있는 물고기가 없습니다. (동일 물고기 2마리 필요)")
+
+st.markdown("---")
+
+# 🌟 2. 수동 제작 (기존 로직 유지)
+st.markdown("##### 🛠️ 수동 제작")
+
 if craft_candidates:
     selected_fish_to_grind = st.selectbox("분쇄할 물고기 선택 (2마리 소모)", craft_candidates, key="craft_select")
     
@@ -509,7 +546,7 @@ if craft_candidates:
         else:
             st.warning("물고기 수가 부족합니다.")
 else:
-    st.info("떡밥 제작 가능한 물고기가 없습니다. (동일 물고기 2마리 필요)")
+    st.info("수동 제작 가능한 물고기가 없습니다. (동일 물고기 2마리 필요)")
 
 # ================= ⚡ 지도 조각 합성 =================
 st.subheader("🧭 지도 조각 합성")
@@ -575,7 +612,6 @@ else:
 
 # ================= 📚 도감 (토글) =================
 st.divider()
-# 🌟 도감 토글 기능 추가
 open_fishbook = st.checkbox("📚 물고기 도감 열기", value=st.session_state.fishbook_open, key="fishbook_open_cb")
 st.session_state.fishbook_open = open_fishbook
 
