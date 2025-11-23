@@ -66,7 +66,8 @@ ROD_UPGRADE_COSTS = {
 SPECIAL_ITEMS = ["오래된 지도 조각", "완성된 오래된 지도"]
 FUSED_FISH = list(fusion_map.values())
 ALL_COLLECTIBLES = set(fish_list) | set(SPECIAL_ITEMS) | set(FUSED_FISH)
-EXCLUDED_FROM_QUICK_SELL = SPECIAL_ITEMS + FUSED_FISH
+# EXCLUDED_FROM_QUICK_SELL 변수는 이제 전체 판매에 사용되지 않으므로 사실상 무시됩니다.
+EXCLUDED_FROM_QUICK_SELL = SPECIAL_ITEMS + FUSED_FISH 
 
 RARE_LOCATION_COSTS = {
     "coin": 1500,
@@ -98,8 +99,6 @@ def initialize_session_state():
         if key not in st.session_state:
             st.session_state[key] = default_value
     
-    # 레벨 기반 인플레이션을 제거했으므로, 관련된 세션 상태 변수 초기화 제거
-
 initialize_session_state()
 
 # ================= 3. 함수 정의 =================
@@ -138,30 +137,22 @@ def update_bait_price():
     
     current_count = st.session_state.total_fish_caught
     
-    # 1. 10마리당 10 코인씩 오르는 잠재적 인상액 계산
-    # 예: 50마리 -> (50 // 10) * 10 = 50
-    # 예: 105마리 -> (105 // 10) * 10 = 100
     potential_increase = (current_count // CATCH_THRESHOLD_FOR_STEP) * BAIT_INCREASE_STEP
-    
-    # 2. 최대 상승액 (1500)으로 제한
     new_increase = min(potential_increase, MAX_BAIT_INCREASE)
-    
     current_increase = shop_items["떡밥"]["price_increase"] 
 
     if new_increase != current_increase:
-        # 물가 상승이 발생한 경우만 토스트 알림
         if new_increase > current_increase:
              st.toast(f"💰 물가 상승! 떡밥 가격 +{new_increase - current_increase} 코인", icon='📈')
 
-        shop_items["떡밥"]["price"] = BAIT_BASE_PRICE + new_increase # 실제 가격 업데이트
-        shop_items["떡밥"]["price_increase"] = new_increase # 누적 상승액 업데이트
-        st.session_state.coin = int(st.session_state.coin) # 코인 정수화 유지
+        shop_items["떡밥"]["price"] = BAIT_BASE_PRICE + new_increase 
+        shop_items["떡밥"]["price_increase"] = new_increase 
+        st.session_state.coin = int(st.session_state.coin) 
 
 
 def random_event(event_rate, location):
     """
     랜덤 이벤트를 발생시키고 결과를 요약 딕셔너리로 반환합니다. 
-    이벤트 발동 시 코인 값은 int()로 명시적으로 형 변환하여 소수점을 방지합니다.
     """
     summary = {
         'coin': 0, 'bonus_fish': [], 'lost_fish': [], 
@@ -216,7 +207,7 @@ def get_fishing_weights():
     weights = fish_weights.copy()
     rod_bonus_multiplier = 1 + (st.session_state.rod_level * 0.2)
 
-    # 1. 위치별 가중치 조정 (로직 생략 - 변화 없음)
+    # 1. 위치별 가중치 조정 
     if st.session_state.location == "바다":
         for i, f in enumerate(fish_list):
             if f in ["고등어", "전갱이", "꽁치", "우럭", "삼치", "참치", "광어", "도미", "농어", "갈치", "병어", "청새치", "황새치", "랍스터", "킹크랩"]:
@@ -269,7 +260,6 @@ if st.session_state.lost_island_unlocked:
 st.divider()
 
 # ================= 낚시터 선택 =================
-# (로직 생략 - 변화 없음)
 current_location = st.session_state.location
 
 LOCATIONS = ["강가", "바다", "희귀 낚시터"]
@@ -480,7 +470,6 @@ with col1:
 
 # ================= 🎒 인벤토리 (토글) =================
 with col2:
-    # (로직 생략 - 변화 없음)
     open_inventory = st.checkbox("🎒 인벤토리 열기", value=st.session_state.inventory_open, key="inventory_open_cb")
     st.session_state.inventory_open = open_inventory
     
@@ -491,8 +480,8 @@ with col2:
         if display_inventory:
             counts = Counter(display_inventory)
             for item, cnt in counts.items():
-                sell_note = " (⚠️수동 전용)" if item in EXCLUDED_FROM_QUICK_SELL else ""
-                st.write(f"**{item}** x {cnt} (판매가: {price_map.get(item,'N/A')} 코인){sell_note}")
+                # 전체 판매로 다 팔 수 있게 되었으므로 판매 불가 표시는 제거
+                st.write(f"**{item}** x {cnt} (판매가: {price_map.get(item,'N/A')} 코인)")
         else:
             st.info("인벤토리가 비어 있습니다.")
 
@@ -560,7 +549,6 @@ if st.session_state.shop_open:
     st.markdown("---")
     
     # --- 판매 ---
-    # (로직 생략 - 변화 없음)
     st.subheader("💰 판매")
     
     if st.session_state.inventory:
@@ -569,16 +557,17 @@ if st.session_state.shop_open:
         total_sell_coin = 0
         sellable_items = []
         
+        # 💡 [전체 판매] 로직: 모든 인벤토리 아이템을 포함합니다.
         for item, qty in counts.items():
-            if item not in EXCLUDED_FROM_QUICK_SELL:
-                price = price_map.get(item, 0)
-                total_sell_coin += price * qty
-                sellable_items.append((item, qty))
+            price = price_map.get(item, 0)
+            total_sell_coin += price * qty
+            sellable_items.append((item, qty))
 
         if total_sell_coin > 0:
-            st.write(f"**일반 물고기 전체 판매 예상 수입:** **{total_sell_coin}** 코인")
+            # 💡 버튼 및 메시지 업데이트
+            st.write(f"**전체 아이템 판매 예상 수입:** **{total_sell_coin}** 코인")
             
-            if st.button("🐟 일반 물고기 전체 판매", key="sell_all_btn"):
+            if st.button("💰 전체 아이템 일괄 판매", key="sell_all_btn"):
                 
                 total_items_sold = 0
                 for item, qty in sellable_items:
@@ -587,15 +576,16 @@ if st.session_state.shop_open:
                         st.session_state.inventory.remove(item)
                         
                 st.session_state.coin = int(st.session_state.coin + total_sell_coin)
-                st.success(f"총 {total_items_sold}마리 판매 완료! +{total_sell_coin} 코인")
+                st.success(f"총 {total_items_sold}개 판매 완료! +{total_sell_coin} 코인")
                 st.rerun()
                 
         else:
-             st.info("현재 일반 물고기가 없습니다.")
+             st.info("현재 판매할 아이템이 없습니다.")
 
         st.markdown("---")
-        st.caption(f"**수동 판매/합성 전용:** {', '.join(EXCLUDED_FROM_QUICK_SELL)}은 전체 판매에서 제외됩니다.")
-
+        st.caption("🚨 **주의:** 전체 판매 시 떡밥 제작이나 지도 합성에 필요한 특수 아이템도 모두 코인으로 전환됩니다.")
+        
+        # --- 수동 판매 (기존 로직 유지) ---
         selected = st.multiselect(
             "판매할 아이템 선택 (수동)",
             st.session_state.inventory,
@@ -603,7 +593,7 @@ if st.session_state.shop_open:
             key="sell_select"
         )
 
-        if st.button("판매", key="sell_btn"):
+        if st.button("선택된 아이템 판매", key="sell_btn"):
             counts = Counter(st.session_state.inventory)
             selected_counts = Counter(selected)
             total = 0
