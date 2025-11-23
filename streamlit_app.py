@@ -128,8 +128,8 @@ if temp_location != current_location:
     if temp_location == "희귀 낚시터":
         
         # --- [수정된 희귀 낚시터 입장 로직] ---
-        required_coin = 1000
-        required_fish = {"대멸치": 10, "대붕어": 10}
+        required_coin = 2000
+        required_fish = {"대멸치": 20, "대붕어": 20}
         
         current_inventory_counts = Counter(st.session_state.inventory)
         has_coin = st.session_state.coin >= required_coin
@@ -148,9 +148,9 @@ if temp_location != current_location:
 
         entry_options = []
         if has_coin:
-            entry_options.append("코인만 소모 (1000 코인)")
+            entry_options.append("코인만 소모 (2000 코인)")
         if has_fish:
-            entry_options.append("대멸치 30마리 + 대붕어 30마리 소모")
+            entry_options.append("대멸치 20마리 + 대붕어 20마리 소모")
             
         if not entry_options:
             st.warning(f"❗ 코인(1000)과 물고기 조건 모두 부족합니다.")
