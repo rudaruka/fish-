@@ -39,7 +39,7 @@ for base, fused in fusion_map.items():
     price_map[fused] = price_map.get(base, 0) * 5
 
 price_map["오래된 지도 조각"] = 5000
-price_map["완성된 오래된 지도"] = 50000
+price_map["완성된 오래된 지도"] = 25000
 price_map["떡밥"] = 50 
 
 shop_items = {
@@ -338,9 +338,9 @@ with col1:
             random_event(event_rate + 0.1)
             st.rerun()
 
-    # 3번 낚시 (떡밥 모두 소모)
+    # 3번 낚시 (떡밥 모두 소모) 🌟 이름 변경됨
     bait_count = st.session_state.bait
-    button_text_3 = f"{prefix}3번 낚시: **떡밥 모두 사용 ({bait_count}개)**"
+    button_text_3 = f"{prefix}**물고기 전체 낚기!** (떡밥 {bait_count}개 소모)" # 요청에 따라 이름 변경
     
     if st.button(button_text_3, key="fish_all", disabled=bait_count < 1):
         if bait_count >= 1:
