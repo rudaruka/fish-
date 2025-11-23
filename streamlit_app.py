@@ -27,7 +27,8 @@ fish_prob = {
 
 fish_list = list(fish_prob.keys())
 fish_weights = list(fish_prob.values())
-price_map = {fish: (100 - prob) * 1 for fish, prob in fish_prob.items()}
+# 가격 계산도 정수로 유지
+price_map = {fish: int((100 - prob) * 1) for fish, prob in fish_prob.items()} 
 
 fusion_map = {
     "멸치": "대멸치", "복어": "대복어", "누치": "대누치",
@@ -36,10 +37,10 @@ fusion_map = {
 }
 
 for base, fused in fusion_map.items():
-    price_map[fused] = price_map.get(base, 0) * 5
+    price_map[fused] = int(price_map.get(base, 0) * 5)
 
 price_map["오래된 지도 조각"] = 5000
-price_map["완성된 오래된 지도"] = 50000
+price_map["완성된 오래된 지도"] = 25000
 price_map["떡밥"] = 50 
 
 shop_items = {
@@ -68,7 +69,7 @@ RARE_LOCATION_COSTS = {
 # ================= 1. 세션 초기화 =================
 def initialize_session_state():
     defaults = {
-        "coin": 0,
+        "coin": 0, # 시작 코인은 정수
         "inventory": [],
         "shop_open": False,
         "inventory_open": False, 
@@ -124,15 +125,8 @@ def check_for_map_completion():
 
 def random_event(event_rate, location):
     """
-    랜덤 이벤트를 발생시키고 결과를 요약 딕셔너리로 반환합니다.
-    {
-        'coin': int, 
-        'bonus_fish': list, 
-        'lost_fish': list, 
-        'map_pieces': int, 
-        'special_bonus': int,
-        'no_effect': int
-    }
+    랜덤 이벤트를 발생시키고 결과를 요약 딕셔너리로 반환합니다. 
+    이벤트 발동 시 코인 값은 int()로 명시적으로 형 변환하여 소수점을 방지합니다.
     """
     summary = {
         'coin': 0, 'bonus_fish': [], 'lost_fish': [], 
@@ -144,7 +138,7 @@ def random_event(event_rate, location):
         
         if event == 1: # 코인 보너스
             bonus = random.randint(10, 80)
-            st.session_state.coin += bonus
+            st.session_state.coin = int(st.session_state.coin + bonus) # 💡 코인 정수화
             summary['coin'] += bonus
         
         elif event == 2: # 물고기 보너스
@@ -170,11 +164,11 @@ def random_event(event_rate, location):
             summary['map_pieces'] += 1
             
         elif event == 5 and location == "전설의 해역": # 전설 해역 보너스 코인
-            st.session_state.coin += 500
+            st.session_state.coin = int(st.session_state.coin + 500) # 💡 코인 정수화
             summary['special_bonus'] += 500
         
         elif event == 5 and location == "잃어버린 섬": # 잃어버린 섬 보너스 코인
-            st.session_state.coin += 1500
+            st.session_state.coin = int(st.session_state.coin + 1500) # 💡 코인 정수화
             summary['special_bonus'] += 1500
             
         else: # 기타 긍정적 효과 (메시지 대신 누적)
@@ -227,7 +221,8 @@ def get_fishing_weights():
 st.title("🎣 낚시터에 오신 것을 환영합니다!!")
 st.subheader("이게 첫 작품이라고?! 🐟")
 
-st.write(f"💰 현재 코인: **{st.session_state.coin}**")
+# 코인 출력도 int()로 한 번 더 감싸서 안전하게 출력
+st.write(f"💰 현재 코인: **{int(st.session_state.coin)}**")
 st.write(f"🧵 현재 떡밥: **{st.session_state.bait}개**")
 st.write(f"✨ 낚싯대 레벨: **Lv.{st.session_state.rod_level}**")
 
@@ -270,7 +265,7 @@ if temp_location != current_location:
         has_fish = all(current_inventory_counts.get(name, 0) >= qty for name, qty in required_fish.items())
 
         st.markdown("##### 💎 희귀 낚시터 입장 조건")
-        st.write(f"💰 코인: **{required_coin}** (현재: {st.session_state.coin})")
+        st.write(f"💰 코인: **{required_coin}** (현재: {int(st.session_state.coin)})")
 
         fish_status_msg = ""
         for name, qty in required_fish.items():
@@ -288,7 +283,7 @@ if temp_location != current_location:
             
             if can_enter_by_coin:
                 if st.button(f"💰 코인 소모 입장 ({required_coin} 코인)", key="enter_rare_coin"):
-                    st.session_state.coin -= required_coin
+                    st.session_state.coin = int(st.session_state.coin - required_coin) # 💡 코인 정수화
                     st.session_state.location = temp_location
                     st.success(f"🔥 희귀 낚시터 입장! (-{required_coin} 코인)")
                     st.rerun() 
@@ -349,7 +344,6 @@ with col1:
             catch_fish(fish)
             st.success(f"{prefix}{success_msg_prefix}**{fish}** 낚았다! (남은 떡밥: {st.session_state.bait}개)")
             
-            # 단일 낚시는 이전처럼 즉시 이벤트 발생
             event_result = random_event(event_rate, current_location)
             if any(event_result.values()):
                 st.info("🎲 랜덤 이벤트 발동!")
@@ -365,7 +359,6 @@ with col1:
             for f in fish_caught: catch_fish(f)
             st.success(f"{prefix}{success_msg_prefix}{', '.join(fish_caught)} 낚았다! (남은 떡밥: {st.session_state.bait}개)")
             
-            # 단일 낚시는 이전처럼 즉시 이벤트 발생
             event_result = random_event(event_rate + 0.1, current_location)
             if any(event_result.values()):
                 st.info("🎲 랜덤 이벤트 발동!")
@@ -402,7 +395,6 @@ with col1:
             for _ in range(bait_count):
                 event_result = random_event(event_rate, current_location)
                 
-                # 이벤트 발생 여부 확인 및 누적
                 if any(event_result.values()):
                     events_triggered += 1
                     total_event_summary['coin'] += event_result['coin']
@@ -481,12 +473,11 @@ if st.session_state.shop_open:
 
         st.write(f"현재 레벨: Lv.{current_level}")
         st.write(f"다음 레벨: Lv.{next_level}")
-        st.write(f"필요 코인: {cost['coin']} (현재: {st.session_state.coin})")
-        st.write(f"성공 확률: {int(cost['success_rate']*100)}%")
+        st.write(f"필요 코인: {cost['coin']} (현재: {int(st.session_state.coin)})")
 
         can_upgrade = st.session_state.coin >= cost['coin']
         if st.button(f"Lv.{next_level} 강화 시도", disabled=not can_upgrade, key=f"upgrade_{next_level}"):
-            st.session_state.coin -= cost['coin']
+            st.session_state.coin = int(st.session_state.coin - cost['coin']) # 💡 코인 정수화
             if random.random() < cost['success_rate']:
                 st.session_state.rod_level = next_level
                 st.success(f"🎉 강화 성공! Lv.{next_level}")
@@ -514,7 +505,7 @@ if st.session_state.shop_open:
 
     if st.button(f"떡밥 {purchase_qty}개 구매", key="buy_bait_multi", disabled=not can_purchase):
         if can_purchase:
-            st.session_state.coin -= total_cost
+            st.session_state.coin = int(st.session_state.coin - total_cost) # 💡 코인 정수화
             st.session_state.bait += purchase_qty
             st.success(f"떡밥 {purchase_qty}개 구매 완료! (-{total_cost} 코인)")
             st.rerun()
@@ -549,7 +540,7 @@ if st.session_state.shop_open:
                     for _ in range(qty):
                         st.session_state.inventory.remove(item)
                         
-                st.session_state.coin += total_sell_coin
+                st.session_state.coin = int(st.session_state.coin + total_sell_coin) # 💡 코인 정수화
                 st.success(f"총 {total_items_sold}마리 판매 완료! +{total_sell_coin} 코인")
                 st.rerun()
                 
@@ -580,7 +571,7 @@ if st.session_state.shop_open:
                 total += price_map.get(item, 0) * sell_qty
 
             if total > 0:
-                st.session_state.coin += total
+                st.session_state.coin = int(st.session_state.coin + total) # 💡 코인 정수화
                 st.success(f"{items_sold_count}개 판매 완료! +{total} 코인")
                 st.rerun()
     else:
@@ -746,5 +737,5 @@ if st.session_state.fishbook_open:
             st.write(f"**{fused}** ({status})")
 
 st.write("---")
-st.write(f"💰 최종 코인: **{st.session_state.coin}**")
+st.write(f"💰 최종 코인: **{int(st.session_state.coin)}**")
 st.write(f"🧵 최종 떡밥: **{st.session_state.bait}**")
