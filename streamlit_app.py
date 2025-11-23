@@ -596,23 +596,23 @@ if st.session_state.shop_open:
                 sellable_items_special.append((item, qty))
 
         st.markdown("##### 💎 특수/합성 아이템 일괄 판매")
+        st.write(f"**특수/합성 아이템 판매 예상 수입:** **{total_sell_coin_special}** 코인")
         if total_sell_coin_special > 0:
-            st.write(f"**특수/합성 아이템 판매 예상 수입:** **{total_sell_coin_special}** 코인")
             st.caption("⚠️ 지도 조각/합성 물고기 등 고가치 아이템이 모두 판매됩니다.")
-            
-            if st.button("💎 특수 아이템 전체 판매", key="sell_special_btn"):
-                
-                total_items_sold = 0
-                for item, qty in sellable_items_special:
-                    total_items_sold += qty
-                    for _ in range(qty):
-                        st.session_state.inventory.remove(item)
-                        
-                st.session_state.coin = int(st.session_state.coin + total_sell_coin_special)
-                st.success(f"총 {total_items_sold}개 판매 완료! +{total_sell_coin_special} 코인")
-                st.rerun()
         else:
-             st.info("현재 특수/합성 아이템이 없습니다.")
+            st.caption("현재 특수/합성 아이템이 없습니다.")
+            
+        if st.button("💎 특수 아이템 전체 판매", key="sell_special_btn", disabled=total_sell_coin_special == 0):
+            
+            total_items_sold = 0
+            for item, qty in sellable_items_special:
+                total_items_sold += qty
+                for _ in range(qty):
+                    st.session_state.inventory.remove(item)
+                    
+            st.session_state.coin = int(st.session_state.coin + total_sell_coin_special)
+            st.success(f"총 {total_items_sold}개 판매 완료! +{total_sell_coin_special} 코인")
+            st.rerun()
 
         st.markdown("---")
         
