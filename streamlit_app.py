@@ -4,9 +4,25 @@ from collections import Counter
 
 # ================= 2. 물고기 & 가격 정의 =================
 fish_prob = {
-    "멸치": 25, "복어": 25, "누치": 20, "정어리": 15, "붕어": 15,
-    "빙어": 10, "북어": 10, "전갱이": 10, "꽁치": 10, "은어": 8,
-    "노래미": 7, "고등어": 7, "메기": 6, "잉어": 6, "쥐치": 5
+    # 🐟 일반/흔함 물고기 (Prob 15~30, 강가/바다)
+    "멸치": 25, "복어": 25, "누치": 20, "정어리": 15, 
+    "빙어": 10, "북어": 10, "꽁치": 10, "은어": 8, "노래미": 7, "쥐치": 5, 
+    "고등어": 7, "전갱이": 10,
+    "피라냐": 30, "메기": 20, "송어": 20, "붕어": 25, "잉어": 15, "향어": 20,
+    "가물치": 25, "쏘가리": 15, "붕장어": 20, "갯장어": 15, "우럭": 15, "삼치": 15,
+
+    # 🦈 희귀 물고기 (Prob 4~10, 바다/희귀 낚시터)
+    "참치": 10, "연어": 8, "광어": 7, "도미": 7, "농어": 6, "아귀": 5, 
+    "볼락": 5, "갈치": 4, "병어": 4,
+
+    # 🦀 특수/초희귀 물고기 (Prob 1~3, 전설/잃어버린 섬)
+    "청새치": 3, "황새치": 2, "랍스터": 2, "킹크랩": 1, "개복치": 1, "해마": 3,
+
+    # ✨ 새로운 합성 기반 물고기 (Prob 15~20, 합성 재료)
+    "방어": 20, "날치": 15, "열기": 15,
+    
+    # 🔱 심해/전설 물고기 (Prob 0.5, 잃어버린 섬 전용)
+    "메가참치": 0.5, "번개상어": 0.5, "심연참돔": 0.5 
 }
 
 fish_list = list(fish_prob.keys())
@@ -15,16 +31,19 @@ price_map = {fish: (100 - prob) * 1 for fish, prob in fish_prob.items()}
 
 fusion_map = {
     "멸치": "대멸치", "복어": "대복어", "누치": "대누치",
-    "정어리": "대정어리", "붕어": "대붕어"
+    "정어리": "대정어리", "붕어": "대붕어",
+    # 🌟 새로운 합성 물고기 추가
+    "방어": "대방어", "날치": "대날치", "열기": "대열기"
 }
-# 합성 물고기 가격 정의
+
+# 합성 물고기 가격 정의 (기존 물고기 가격의 5배)
 for base, fused in fusion_map.items():
     price_map[fused] = price_map.get(base, 0) * 5
 
-# 아이템 및 가격 정의
+# 🌟 새로운 아이템 및 가격 정의
 price_map["오래된 지도 조각"] = 5000
 price_map["완성된 오래된 지도"] = 50000
-price_map["떡밥"] = 50 # 떡밥 판매 가격 설정
+price_map["떡밥"] = 50 
 
 shop_items = {
     "떡밥": {
@@ -44,10 +63,10 @@ FUSED_FISH = list(fusion_map.values())
 ALL_COLLECTIBLES = set(fish_list) | set(SPECIAL_ITEMS) | set(FUSED_FISH)
 EXCLUDED_FROM_QUICK_SELL = SPECIAL_ITEMS + FUSED_FISH
 
-# 희귀 낚시터 입장 조건 (최종 반영)
+# 🎯 희귀 낚시터 입장 조건 수정 (5종의 합성 물고기 각 10마리)
 RARE_LOCATION_COSTS = {
     "coin": 1500,
-    "fish": {"대멸치": 10, "대붕어": 10, "대복어": 10} # 합성 물고기 3종 각 10마리
+    "fish": {"대멸치": 10, "대붕어": 10, "대복어": 10, "대방어": 10, "대날치": 10} 
 }
 
 # ================= 1. 세션 초기화 =================
@@ -59,7 +78,7 @@ def initialize_session_state():
         "location": "강가",
         "location_selector": "강가",
         "rod_level": 0,
-        "bait": 4, # 기본 떡밥 4개
+        "bait": 4, 
         "fishbook_complete": False,
         "legendary_unlocked": False,
         "lost_island_unlocked": False
@@ -96,15 +115,13 @@ def catch_fish(fish):
     st.session_state.fishbook.add(fish)
     check_and_grant_fishbook_reward()
 
-# 🌟 지도 완성 체크 로직 (제작 버튼에서 호출되도록 유지)
 def check_for_map_completion():
-    # 이미 해금되었거나, 인벤토리에 지도가 없으면 리턴
+    """인벤토리에 완성된 지도가 있으면 잃어버린 섬을 해금합니다."""
     if st.session_state.lost_island_unlocked or "완성된 오래된 지도" not in st.session_state.inventory:
         return
     
-    # 인벤토리에 지도가 있고, 플래그가 False일 때만 해금 처리
     st.session_state.lost_island_unlocked = True
-    st.toast("🏝️ 잃어버린 섬 해금!", icon='🗺️') # 토스트 메시지만 출력 (UX 개선)
+    st.toast("🏝️ 잃어버린 섬 해금!", icon='🗺️')
 
 
 def random_event(event_rate):
@@ -121,9 +138,14 @@ def random_event(event_rate):
             st.success(f"🎣 보너스 물고기 **{f2}** 획득!")
         elif event == 3:
             if st.session_state.inventory:
-                lost = random.choice(st.session_state.inventory)
-                st.session_state.inventory.remove(lost)
-                st.error(f"🔥 물고기(**{lost}**) 1마리 도망감!")
+                # 특수 아이템 제외하고 잃어버릴 물고기 선택
+                losable_items = [i for i in st.session_state.inventory if i not in SPECIAL_ITEMS]
+                if losable_items:
+                    lost = random.choice(losable_items)
+                    st.session_state.inventory.remove(lost)
+                    st.error(f"🔥 물고기(**{lost}**) 1마리 도망감!")
+                else:
+                    st.warning("도망갈 물고기가 없어요.")
             else:
                 st.warning("도망갈 물고기가 없어요.")
         elif event == 5 and st.session_state.location == "희귀 낚시터":
@@ -147,43 +169,41 @@ def get_fishing_weights():
     # 1. 위치별 가중치 조정
     if st.session_state.location == "바다":
         for i, f in enumerate(fish_list):
-            if f in ["전갱이","고등어","꽁치"]:
-                weights[i] *= 1.3
+            if f in ["고등어", "전갱이", "꽁치", "우럭", "삼치", "참치", "광어", "도미", "농어", "갈치", "병어", "청새치", "황새치", "랍스터", "킹크랩"]:
+                weights[i] *= 1.5 
             else:
-                weights[i] *= 0.8
+                weights[i] *= 0.5 
     elif st.session_state.location == "희귀 낚시터":
         for i, f in enumerate(fish_list):
-            if fish_prob.get(f, 1) <= 10: # 희귀 물고기
-                weights[i] *= 3
-            if f in fusion_map: # 합성 기반 물고기
-                 weights[i] *= 1.5
+            if fish_prob.get(f, 1) <= 10 or f in ["참치", "연어", "광어"]:
+                weights[i] *= 4 
+            if f in fusion_map:
+                 weights[i] *= 2
     elif st.session_state.location == "전설의 해역":
         for i, f in enumerate(fish_list):
-            if fish_prob.get(f, 1) <= 15:
-                weights[i] *= 5
+            if fish_prob.get(f, 1) <= 10 or f in ["청새치", "황새치", "랍스터", "킹크랩", "개복치"]:
+                weights[i] *= 8
             if f in fusion_map:
-                weights[i] *= 2
+                weights[i] *= 3
     elif st.session_state.location == "잃어버린 섬":
         for i, f in enumerate(fish_list):
-            if fish_prob.get(f, 1) <= 10:
-                weights[i] *= 10
+            # 심해/전설 물고기 및 킹크랩, 개복치만 출현하도록 집중
+            if f in ["킹크랩", "개복치", "메가참치", "번개상어", "심연참돔"]:
+                weights[i] *= 25 
             else:
-                weights[i] /= 2
+                weights[i] /= 10 
             if f in fusion_map:
-                weights[i] *= 5
+                weights[i] *= 0 # 합성 재료는 나오지 않음
     
     # 2. 낚싯대 보너스 조정 (희귀 물고기만)
     for i, f in enumerate(fish_list):
-        if fish_prob.get(f, 1) <= 10:
+        if fish_prob.get(f, 1) <= 10: 
             weights[i] *= rod_bonus_multiplier
             
     return weights
 
 
 # ================= 4. UI =================
-# 지도 완성 체크 함수는 이제 제작 버튼에서만 호출되도록 변경했으므로, 여기서는 제거
-# check_for_map_completion() 
-
 st.title("🎣 낚시터에 오신 것을 환영합니다!!")
 st.subheader("이게 첫 작품이라고?! 🐟")
 
@@ -246,7 +266,6 @@ if temp_location != current_location:
 
         if can_enter_by_coin or can_enter_by_fish:
             
-            # 1. 코인 소모 입장 버튼
             if can_enter_by_coin:
                 if st.button(f"💰 코인 소모 입장 ({required_coin} 코인)", key="enter_rare_coin"):
                     st.session_state.coin -= required_coin
@@ -254,7 +273,6 @@ if temp_location != current_location:
                     st.success(f"🔥 희귀 낚시터 입장! (-{required_coin} 코인)")
                     st.rerun() 
             
-            # 2. 물고기 소모 입장 버튼
             if can_enter_by_fish:
                 fish_cost_str = f"({' + '.join([f'{name} {qty}마리' for name, qty in required_fish.items()])} 소모)"
                 if st.button(f"🐟 물고기 소모 입장 {fish_cost_str}", key="enter_rare_fish"):
@@ -268,18 +286,17 @@ if temp_location != current_location:
 
         else:
             st.warning("❗ 입장 조건 부족")
-            # 조건을 만족하지 못하면 selectbox를 이전 위치로 되돌림
             st.session_state.location_selector = current_location
             
     elif temp_location in ["전설의 해역", "잃어버린 섬"]:
         st.session_state.location = temp_location
         st.success(f"🌌 **{temp_location}** 입장!")
-        st.rerun() # 위치 변경 시 새로고침
+        st.rerun()
     
-    else: # 강가, 바다
+    else: 
         st.session_state.location = temp_location
         st.info(f"📍 낚시터를 **{temp_location}** 로 변경")
-        st.rerun() # 위치 변경 시 새로고침
+        st.rerun()
 
 st.markdown(f"**현재 위치:** {st.session_state.location}")
 st.divider()
@@ -294,14 +311,13 @@ with col1:
         st.error("❗ 떡밥이 부족합니다! 상점에서 구매하거나 제작하세요.")
 
     current_location = st.session_state.location
-    # 위치별 접두사, 이벤트율, 메시지 설정
     if current_location == "잃어버린 섬":
         prefix, event_rate, success_msg_prefix = "🔱 ", 0.45, "전설의 "
     elif current_location == "전설의 해역":
         prefix, event_rate, success_msg_prefix = "🌌 ", 0.35, "희귀한 "
     elif current_location == "희귀 낚시터":
         prefix, event_rate, success_msg_prefix = "💎 ", 0.25, "빛나는 "
-    else: # 강가, 바다
+    else:
         prefix, event_rate, success_msg_prefix = "🎣 ", 0.15, ""
 
     # 1번 낚시 (떡밥 1 소모)
@@ -313,6 +329,7 @@ with col1:
             catch_fish(fish)
             st.success(f"{prefix}{success_msg_prefix}**{fish}** 낚았다! (남은 떡밥: {st.session_state.bait}개)")
             random_event(event_rate)
+            st.rerun()
     
     # 2번 낚시 (떡밥 2 소모)
     button_text_2 = f"{prefix}2번 낚시 **(떡밥 2 소모)**"
@@ -323,6 +340,7 @@ with col1:
             for f in fish_caught: catch_fish(f)
             st.success(f"{prefix}{success_msg_prefix}{', '.join(fish_caught)} 낚았다! (남은 떡밥: {st.session_state.bait}개)")
             random_event(event_rate + 0.1)
+            st.rerun()
 
 
 # ================= 🎒 인벤토리 =================
@@ -334,7 +352,6 @@ with col2:
     if display_inventory:
         counts = Counter(display_inventory)
         for item, cnt in counts.items():
-            # 🌟 개선: 전체 판매 제외 아이템 표시
             sell_note = " (⚠️수동 전용)" if item in EXCLUDED_FROM_QUICK_SELL else ""
             st.write(f"**{item}** x {cnt} (판매가: {price_map.get(item,'N/A')} 코인){sell_note}")
     else:
@@ -408,7 +425,6 @@ if st.session_state.shop_open:
     
     if st.session_state.inventory:
         
-        # 🌟 인벤토리 전체 판매 로직 (일반 물고기만)
         counts = Counter(st.session_state.inventory)
         total_sell_coin = 0
         sellable_items = []
@@ -422,10 +438,8 @@ if st.session_state.shop_open:
         if total_sell_coin > 0:
             st.write(f"**일반 물고기 전체 판매 예상 수입:** **{total_sell_coin}** 코인")
             
-            # 전체 판매 버튼
             if st.button("🐟 일반 물고기 전체 판매", key="sell_all_btn"):
                 
-                # 인벤토리에서 판매 항목 제거 및 코인 획득 처리
                 total_items_sold = 0
                 for item, qty in sellable_items:
                     total_items_sold += qty
@@ -442,7 +456,6 @@ if st.session_state.shop_open:
         st.markdown("---")
         st.caption(f"**수동 판매/합성 전용:** {', '.join(EXCLUDED_FROM_QUICK_SELL)}은 전체 판매에서 제외됩니다.")
 
-        # 기존 수동 판매 멀티셀렉트
         selected = st.multiselect(
             "판매할 아이템 선택 (수동)",
             st.session_state.inventory,
@@ -482,7 +495,6 @@ craft_candidates = [f for f, count in counts.items() if count >= 2 and f not in 
 if craft_candidates:
     selected_fish_to_grind = st.selectbox("분쇄할 물고기 선택 (2마리 소모)", craft_candidates, key="craft_select")
     
-    # 떡밥 제작 수량 입력 필드
     max_craftable = counts.get(selected_fish_to_grind, 0) // 2
     craft_qty = st.number_input("제작할 떡밥 개수", min_value=1, max_value=max_craftable, value=min(1, max_craftable), step=1, key="craft_qty")
 
@@ -515,7 +527,6 @@ if st.button("🗺️ 완성된 오래된 지도 제작 (조각 10개 소모)", 
         
         catch_fish("완성된 오래된 지도")
         
-        # 지도 완성 시 해금 체크
         check_for_map_completion() 
         
         st.balloons()
@@ -534,7 +545,6 @@ fusion_candidates = [f for f in fusion_map.keys() if counts.get(f,0) >= 2]
 if fusion_candidates:
     sel = st.selectbox("합성할 물고기 선택", fusion_candidates, key="fusion_select")
     
-    # 물고기 합성 수량 입력 필드
     max_fusion_attempts = counts.get(sel, 0) // 2
     fusion_qty = st.number_input("합성 시도 횟수", min_value=1, max_value=max_fusion_attempts, value=min(1, max_fusion_attempts), step=1, key="fusion_qty")
 
@@ -567,12 +577,15 @@ else:
 st.divider()
 st.subheader(f"📚 물고기 도감 ({len(st.session_state.fishbook)}/{len(ALL_COLLECTIBLES)})")
 
-st.markdown("##### 🐟 일반 물고기")
+# 물고기 목록을 Prob(희귀도) 순으로 정렬하여 표시 (UX 개선)
+sorted_fish_list = sorted(fish_list, key=lambda f: fish_prob[f], reverse=True)
+
+st.markdown("##### 🐟 일반/희귀 물고기")
 cols = st.columns(5)
-for i, fish in enumerate(fish_list):
+for i, fish in enumerate(sorted_fish_list):
     with cols[i % 5]:
         status = "✔ 발견" if fish in st.session_state.fishbook else "✖ 미발견"
-        st.write(f"**{fish}** ({status})")
+        st.write(f"**{fish}** ({status}, P:{fish_prob[fish]})")
 
 st.markdown("##### 💎 특수 아이템")
 cols_special = st.columns(5)
