@@ -39,7 +39,7 @@ for base, fused in fusion_map.items():
     price_map[fused] = price_map.get(base, 0) * 5
 
 price_map["오래된 지도 조각"] = 5000
-price_map["완성된 오래된 지도"] = 25000
+price_map["완성된 오래된 지도"] = 50000
 price_map["떡밥"] = 50 
 
 shop_items = {
@@ -123,7 +123,11 @@ def check_for_map_completion():
 
 
 def random_event(event_rate):
-    if random.random() < event_rate:
+    """랜덤 이벤트를 발생시키는 함수 (event_rate가 1.0이면 이벤트 발동을 보장)"""
+    
+    # 떡밥 모두 소진 낚시에서 호출될 때는 이미 이벤트 발생이 결정된 상태 (event_rate=1.0)
+    # 1회/2회 낚시에서 호출될 때는 event_rate에 따라 발생
+    if random.random() < event_rate or event_rate == 1.0: 
         st.info("🎲 랜덤 이벤트 발생!")
         event = random.randint(1, 5)
         if event == 1:
@@ -338,9 +342,9 @@ with col1:
             random_event(event_rate + 0.1)
             st.rerun()
 
-    # 3번 낚시 (떡밥 모두 소모) 🌟 이름 변경됨
+    # 3번 낚시 (떡밥 모두 소모) 
     bait_count = st.session_state.bait
-    button_text_3 = f"{prefix}**물고기 전체 낚기!** (떡밥 {bait_count}개 소모)" # 요청에 따라 이름 변경
+    button_text_3 = f"{prefix}**물고기 전체 낚기!** (떡밥 {bait_count}개 소모)" 
     
     if st.button(button_text_3, key="fish_all", disabled=bait_count < 1):
         if bait_count >= 1:
@@ -363,9 +367,19 @@ with col1:
                 
                 st.success(f"{prefix}{success_msg_prefix}총 **{bait_count}회** 낚시 성공! ({summary_msg}) (떡밥 모두 소진)")
                 
-            # 전체 소모 시, 랜덤 이벤트 발생 확률을 높임
-            total_event_rate = event_rate + (bait_count * 0.01)
-            random_event(total_event_rate)
+            # 💡 강화된 부분: 떡밥 개수만큼 랜덤 이벤트 시도
+            event_base_rate = event_rate 
+            events_triggered = 0
+            
+            for i in range(bait_count):
+                # 떡밥 1개당 기본 확률로 이벤트 시도
+                if random.random() < event_base_rate:
+                    random_event(1.0) # random_event 내부에서 100% 실행되도록 인자 전달
+                    events_triggered += 1
+            
+            if events_triggered > 0:
+                 st.info(f"✨ 멀티 낚시 보너스! **랜덤 이벤트 {events_triggered}회** 발동!")
+
             st.rerun()
 
 
