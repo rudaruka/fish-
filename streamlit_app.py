@@ -2,37 +2,47 @@ import streamlit as st
 import random
 from collections import Counter
 
-# ================= 세션 초기화 (최대 강화) =================
+# ================= 1. 세션 초기화 (최대 강화 로직) =================
 # 모든 세션 변수가 존재하고 올바른 타입임을 보장하는 함수
 def initialize_session_state():
+    """
+    st.session_state의 모든 필수 변수들을 초기화하고, 
+    만약 잘못된 타입이 할당되었을 경우 올바른 기본값으로 재설정하여 
+    AttributeError를 방지합니다.
+    """
+    
+    # 기본값 딕셔너리 정의
     defaults = {
         "coin": 0,
         "inventory": [],
         "shop_open": False,
-        "fishbook": set(),
         "location": "강가",
         "location_selector": "강가",
         "rod_level": 0
     }
     
-    # 딕셔너리 및 세트 초기화 시 타입까지 검사하여 안전하게 재설정
+    # 딕셔너리 타입 검사 및 초기화
+    # st.session_state.items가 딕셔너리가 아니거나 없을 때 초기화
     if "items" not in st.session_state or not isinstance(st.session_state.items, dict):
         st.session_state.items = {
             "강화 미끼": 0,
             "자동 낚시권": 0
         }
     
+    # Set 타입 검사 및 초기화 (fishbook)
+    # st.session_state.fishbook이 set이 아니거나 없을 때 초기화
     if "fishbook" not in st.session_state or not isinstance(st.session_state.fishbook, set):
         st.session_state.fishbook = set()
 
+    # 나머지 기본 변수 초기화
     for key, default_value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = default_value
 
-# 앱이 실행될 때마다 초기화 함수 호출
+# 🚨 앱이 실행될 때 Streamlit 스크립트의 최상단에서 초기화 함수를 호출합니다.
 initialize_session_state()
 
-# ================= 물고기 & 가격 =================
+# ================= 2. 물고기 & 가격 정의 =================
 fish_prob = {
     "멸치": 25, "복어": 25, "누치": 20, "정어리": 15, "붕어": 15,
     "빙어": 10, "북어": 10, "전갱이": 10, "꽁치": 10, "은어": 8,
@@ -63,7 +73,7 @@ ROD_UPGRADE_COSTS = {
     3: {"coin": 8000, "bait": 8, "success_rate": 0.4},
 }
 
-# ================= 함수 =================
+# ================= 3. 함수 정의 =================
 def catch_fish(fish):
     st.session_state.inventory.append(fish)
     st.session_state.fishbook.add(fish)
@@ -113,7 +123,7 @@ def get_fishing_weights():
     return weights
 
 def auto_fish(num_tries=5):
-    # items 딕셔너리가 초기화되어 있음을 가정하고 안전하게 접근
+    # 초기화로 인해 안전하게 접근 가능
     current_auto_pass = st.session_state.items.get("자동 낚시권", 0)
     if current_auto_pass <= 0:
         st.error("자동 낚시권이 없습니다.")
@@ -131,7 +141,7 @@ def auto_fish(num_tries=5):
         
     st.success(f"✅ 자동 낚시 완료! 잡은 물고기: {', '.join(fish_caught_list)}")
 
-# ================= UI =================
+# ================= 4. UI 렌더링 =================
 st.title("🎣 낚시는 운이야!!")
 st.write(f"💰 현재 코인: **{st.session_state.coin}**")
 st.write(f"✨ 낚싯대 레벨: **Lv.{st.session_state.rod_level}**")
@@ -165,7 +175,7 @@ col1,col2,col3 = st.columns(3)
 # ================= 🎣 낚시 =================
 with col1:
     st.subheader("🎣 낚시하기")
-    # items에 안전하게 접근
+    # 안전하게 items 접근
     current_auto_pass = st.session_state.items.get("자동 낚시권", 0)
     
     if st.button(f"자동 낚시 (5회 소모)", key="auto_fish_btn", disabled=(current_auto_pass == 0)):
@@ -202,12 +212,13 @@ with col2:
     if display_inventory:
         counts = Counter(display_inventory)
         for item, cnt in counts.items():
+            # 안전하게 price_map에서 가격 조회
             st.write(f"**{item}** x **{cnt}** (판매가: {price_map.get(item,'N/A')} 코인)")
     else:
         st.info("인벤토리가 비어 있습니다.")
     st.write("---")
     st.subheader("🛒 구매 아이템")
-    # items 딕셔너리를 안전하게 가져와서 표시
+    # 초기화로 인해 items는 dict임이 보장됨
     items_dict = st.session_state.items
     if any(items_dict.values()):
         for item, cnt in items_dict.items():
@@ -225,13 +236,13 @@ with col3:
 st.divider()
 
 if st.session_state.shop_open:
-    # 낚싯대 강화
+    ## 낚싯대 강화
     st.subheader("🛠️ 낚싯대 강화")
     current_level = st.session_state.rod_level
     next_level = current_level + 1
     if next_level in ROD_UPGRADE_COSTS:
         cost = ROD_UPGRADE_COSTS[next_level]
-        # items에 안전하게 접근
+        # 안전하게 강화 미끼 수량 조회
         current_bait = st.session_state.items.get("강화 미끼", 0)
         
         st.write(f"**현재 레벨: Lv.{current_level}**")
@@ -251,7 +262,7 @@ if st.session_state.shop_open:
     else:
         st.info(f"낚싯대가 **최고 레벨 Lv.{current_level}**입니다!")
 
-    # 아이템 구매
+    ## 아이템 구매
     st.subheader("🛒 아이템 구매")
     shop_cols = st.columns(2)
     for i,(item,data) in enumerate(shop_items.items()):
@@ -261,14 +272,15 @@ if st.session_state.shop_open:
             if st.button(f"구매 {item}", key=f"buy_{item}"):
                 if st.session_state.coin >= data["price"]:
                     st.session_state.coin -= data["price"]
-                    # 💡 수정된 로직: 강력한 초기화로 인해 안전하게 접근 가능
+                    
+                    # 💡 안전한 구매 로직: items 딕셔너리가 보장되므로 안전하게 접근 및 증가
                     current_count = st.session_state.items.get(item, 0)
                     st.session_state.items[item] = current_count + 1
                     st.success(f"**{item}** 1개 구매 완료!")
                 else:
                     st.error("❗ 코인 부족!")
 
-    # 판매
+    ## 판매
     st.subheader("💰 판매")
     if st.session_state.inventory:
         selected = st.multiselect("판매할 아이템 선택", st.session_state.inventory,
@@ -289,6 +301,7 @@ if st.session_state.shop_open:
         st.warning("판매할 아이템이 없습니다.")
 
 # ================= ⚡ 합성 =================
+st.divider()
 st.subheader("⚡ 물고기 합성")
 counts = Counter(st.session_state.inventory)
 fusion_candidates = [f for f in fusion_map.keys() if counts.get(f,0)>=2]
@@ -311,6 +324,7 @@ else:
     st.info("합성 가능한 물고기가 없습니다. (2마리 필요)")
 
 # ================= 📚 도감 =================
+st.divider()
 st.subheader("📚 물고기 도감")
 st.markdown("##### 🐟 일반 물고기")
 cols = st.columns(5)
