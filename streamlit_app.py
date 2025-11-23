@@ -66,7 +66,7 @@ ROD_UPGRADE_COSTS = {
 SPECIAL_ITEMS = ["오래된 지도 조각", "완성된 오래된 지도"]
 FUSED_FISH = list(fusion_map.values())
 ALL_COLLECTIBLES = set(fish_list) | set(SPECIAL_ITEMS) | set(FUSED_FISH)
-# EXCLUDED_FROM_QUICK_SELL 변수는 이제 전체 판매에 사용되지 않으므로 사실상 무시됩니다.
+# 특수 판매를 위해 다시 제외 리스트를 정의합니다.
 EXCLUDED_FROM_QUICK_SELL = SPECIAL_ITEMS + FUSED_FISH 
 
 RARE_LOCATION_COSTS = {
@@ -480,8 +480,8 @@ with col2:
         if display_inventory:
             counts = Counter(display_inventory)
             for item, cnt in counts.items():
-                # 전체 판매로 다 팔 수 있게 되었으므로 판매 불가 표시는 제거
-                st.write(f"**{item}** x {cnt} (판매가: {price_map.get(item,'N/A')} 코인)")
+                sell_note = " (⚠️ 특수 아이템)" if item in EXCLUDED_FROM_QUICK_SELL else ""
+                st.write(f"**{item}** x {cnt} (판매가: {price_map.get(item,'N/A')} 코인){sell_note}")
         else:
             st.info("인벤토리가 비어 있습니다.")
 
@@ -554,38 +554,71 @@ if st.session_state.shop_open:
     if st.session_state.inventory:
         
         counts = Counter(st.session_state.inventory)
-        total_sell_coin = 0
-        sellable_items = []
         
-        # 💡 [전체 판매] 로직: 모든 인벤토리 아이템을 포함합니다.
+        # 1. 일반 물고기 판매 로직 (특수/합성 제외)
+        total_sell_coin_general = 0
+        sellable_items_general = []
+        
         for item, qty in counts.items():
-            price = price_map.get(item, 0)
-            total_sell_coin += price * qty
-            sellable_items.append((item, qty))
+            if item not in EXCLUDED_FROM_QUICK_SELL:
+                price = price_map.get(item, 0)
+                total_sell_coin_general += price * qty
+                sellable_items_general.append((item, qty))
 
-        if total_sell_coin > 0:
-            # 💡 버튼 및 메시지 업데이트
-            st.write(f"**전체 아이템 판매 예상 수입:** **{total_sell_coin}** 코인")
+        st.markdown("##### 🐟 일반 물고기 일괄 판매")
+        if total_sell_coin_general > 0:
+            st.write(f"**일반 물고기 판매 예상 수입:** **{total_sell_coin_general}** 코인")
             
-            if st.button("💰 전체 아이템 일괄 판매", key="sell_all_btn"):
+            if st.button("💰 일반 물고기 전체 판매", key="sell_general_btn"):
                 
                 total_items_sold = 0
-                for item, qty in sellable_items:
+                for item, qty in sellable_items_general:
                     total_items_sold += qty
                     for _ in range(qty):
                         st.session_state.inventory.remove(item)
                         
-                st.session_state.coin = int(st.session_state.coin + total_sell_coin)
-                st.success(f"총 {total_items_sold}개 판매 완료! +{total_sell_coin} 코인")
+                st.session_state.coin = int(st.session_state.coin + total_sell_coin_general)
+                st.success(f"총 {total_items_sold}마리 판매 완료! +{total_sell_coin_general} 코인")
                 st.rerun()
-                
         else:
-             st.info("현재 판매할 아이템이 없습니다.")
+             st.info("현재 일반 물고기가 없습니다.")
+             
+        st.markdown("---")
+        
+        # 2. 특수/합성 아이템 판매 로직
+        total_sell_coin_special = 0
+        sellable_items_special = []
+        
+        for item, qty in counts.items():
+            if item in EXCLUDED_FROM_QUICK_SELL:
+                price = price_map.get(item, 0)
+                total_sell_coin_special += price * qty
+                sellable_items_special.append((item, qty))
+
+        st.markdown("##### 💎 특수/합성 아이템 일괄 판매")
+        if total_sell_coin_special > 0:
+            st.write(f"**특수/합성 아이템 판매 예상 수입:** **{total_sell_coin_special}** 코인")
+            st.caption("⚠️ 지도 조각/합성 물고기 등 고가치 아이템이 모두 판매됩니다.")
+            
+            if st.button("💎 특수 아이템 전체 판매", key="sell_special_btn"):
+                
+                total_items_sold = 0
+                for item, qty in sellable_items_special:
+                    total_items_sold += qty
+                    for _ in range(qty):
+                        st.session_state.inventory.remove(item)
+                        
+                st.session_state.coin = int(st.session_state.coin + total_sell_coin_special)
+                st.success(f"총 {total_items_sold}개 판매 완료! +{total_sell_coin_special} 코인")
+                st.rerun()
+        else:
+             st.info("현재 특수/합성 아이템이 없습니다.")
 
         st.markdown("---")
-        st.caption("🚨 **주의:** 전체 판매 시 떡밥 제작이나 지도 합성에 필요한 특수 아이템도 모두 코인으로 전환됩니다.")
         
-        # --- 수동 판매 (기존 로직 유지) ---
+        # 3. 수동 판매 (기존 로직 유지)
+        st.markdown("##### 🖐️ 수동 판매 (선택)")
+
         selected = st.multiselect(
             "판매할 아이템 선택 (수동)",
             st.session_state.inventory,
