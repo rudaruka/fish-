@@ -111,7 +111,7 @@ st.title("🎣 낚시터에 오신 것을 환영합니다!!")
 st.subheader("이게 첫 작품이라고?! 🐟")
 
 st.write(f"💰 현재 코인: **{st.session_state.coin}**")
-st.write(f"🧵 현재 떡밥: **{st.session_state.bait}개**")
+st.write(f"🧵 현재 떡밥: **{st.session_state.bait}개**")    # ← 떡밥 표시
 st.write(f"✨ 낚싯대 레벨: **Lv.{st.session_state.rod_level}**")
 st.divider()
 
@@ -191,55 +191,45 @@ st.divider()
 
 col1, col2, col3 = st.columns(3)
 
-# ================= 🎣 낚시하기 (잔고 보호 로직 적용) =================
+# ================= 🎣 낚시하기 =================
 with col1:
     st.subheader("🎣 낚시하기")
 
-    # 🔥 떡밥 부족 체크 (UI 표시)
+    # 🔥 떡밥 부족 체크
     if st.session_state.bait <= 0:
         st.error("❗ 떡밥이 부족합니다! 상점에서 구매하거나 제작하세요.")
 
     # 일반 낚시
     if st.session_state.location != "희귀 낚시터":
-        
-        # 1번 낚시 (떡밥 1 소모)
-        if st.button("1번 낚시 **(떡밥 1 소모)**", key="normal_1", disabled=st.session_state.bait < 1):
-            if st.session_state.bait >= 1: # 🌟 보호 로직
-                st.session_state.bait -= 1
-                fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
-                catch_fish(fish)
-                st.success(f"**{fish}** 낚았다!")
-                random_event(0.15)
-        
-        # 2번 낚시 (떡밥 2 소모)
-        if st.button("2번 낚시 **(떡밥 2 소모)**", key="normal_2", disabled=st.session_state.bait < 2):
-            if st.session_state.bait >= 2: # 🌟 보호 로직
-                st.session_state.bait -= 2
-                fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=2)
-                for f in fish_caught: catch_fish(f)
-                st.success(f"{', '.join(fish_caught)} 낚았다!")
-                random_event(0.25)
+        if st.button("1번 낚시 **(떡밥 1 소모)**", key="normal_1", disabled=st.session_state.bait < 1): # 🎣 텍스트 명확화
+            st.session_state.bait -= 1
+            fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
+            catch_fish(fish)
+            st.success(f"**{fish}** 낚았다!")
+            random_event(0.15)
+
+        if st.button("2번 낚시 **(떡밥 2 소모)**", key="normal_2", disabled=st.session_state.bait < 2): # 🎣 텍스트 명확화
+            st.session_state.bait -= 2
+            fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=2)
+            for f in fish_caught: catch_fish(f)
+            st.success(f"{', '.join(fish_caught)} 낚았다!")
+            random_event(0.25)
 
     # 희귀 낚시
     else:
-        
-        # 희귀 낚시 1회 (떡밥 1 소모)
-        if st.button("희귀 낚시 1회 **(떡밥 1 소모)**", key="rare_1", disabled=st.session_state.bait < 1):
-            if st.session_state.bait >= 1: # 🌟 보호 로직
-                st.session_state.bait -= 1
-                fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
-                catch_fish(fish)
-                st.success(f"💎 {fish} 낚았다!")
-                random_event(0.2)
+        if st.button("희귀 낚시 1회 **(떡밥 1 소모)**", key="rare_1", disabled=st.session_state.bait < 1): # 🎣 텍스트 명확화
+            st.session_state.bait -= 1
+            fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
+            catch_fish(fish)
+            st.success(f"💎 {fish} 낚았다!")
+            random_event(0.2)
 
-        # 희귀 낚시 2회 (떡밥 2 소모)
-        if st.button("희귀 낚시 2회 **(떡밥 2 소모)**", key="rare_2", disabled=st.session_state.bait < 2):
-            if st.session_state.bait >= 2: # 🌟 보호 로직
-                st.session_state.bait -= 2
-                fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=2)
-                for f in fish_caught: catch_fish(f)
-                st.success(f"💎 {', '.join(fish_caught)} 낚았다!")
-                random_event(0.35)
+        if st.button("희귀 낚시 2회 **(떡밥 2 소모)**", key="rare_2", disabled=st.session_state.bait < 2): # 🎣 텍스트 명확화
+            st.session_state.bait -= 2
+            fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=2)
+            for f in fish_caught: catch_fish(f)
+            st.success(f"💎 {', '.join(fish_caught)} 낚았다!")
+            random_event(0.35)
 
 # ================= 🎒 인벤토리 =================
 with col2:
@@ -278,7 +268,7 @@ if st.session_state.shop_open:
         st.write(f"성공 확률: {int(cost['success_rate']*100)}%")
 
         can_upgrade = st.session_state.coin >= cost['coin']
-        if st.button(f"Lv.{next_level} 강화 시도", disabled=not can_upgrade, key=f"upgrade_{next_level}"):
+        if st.button(f"Lv.{next_level} 강화 시도", disabled=not can_upgrade, key=f"upgrade_{next_level}"): # Key 추가
             st.session_state.coin -= cost['coin']
             if random.random() < cost['success_rate']:
                 st.session_state.rod_level = next_level
@@ -314,10 +304,10 @@ if st.session_state.shop_open:
             "판매할 아이템 선택",
             st.session_state.inventory,
             format_func=lambda x: f"{x} ({price_map.get(x,'N/A')} 코인)",
-            key="sell_select"
+            key="sell_select" # Key 추가
         )
 
-        if st.button("판매", key="sell_btn"):
+        if st.button("판매", key="sell_btn"): # Key 추가
             counts = Counter(st.session_state.inventory)
             selected_counts = Counter(selected)
             total = 0
@@ -334,7 +324,7 @@ if st.session_state.shop_open:
     else:
         st.warning("판매할 아이템이 없습니다.")
 
-# ================= 🔧 떡밥 제작 (선택 기능 적용) =================
+# ================= 🔧 떡밥 제작 (선택 기능 추가) =================
 st.divider()
 st.subheader("🧵 떡밥 제작")
 st.caption("동일한 물고기 2마리를 갈아서 떡밥 1개로 만듭니다. (저렴한 물고기를 사용하는 것이 유리합니다.)")
@@ -368,8 +358,8 @@ counts = Counter(st.session_state.inventory)
 fusion_candidates = [f for f in fusion_map.keys() if counts.get(f,0) >= 2]
 
 if fusion_candidates:
-    sel = st.selectbox("합성할 물고기 선택", fusion_candidates, key="fusion_select")
-    if st.button("합성하기", key="fusion_btn"):
+    sel = st.selectbox("합성할 물고기 선택", fusion_candidates, key="fusion_select") # Key 추가
+    if st.button("합성하기", key="fusion_btn"): # Key 추가
         if counts.get(sel,0)>=2:
             st.session_state.inventory.remove(sel)
             st.session_state.inventory.remove(sel)
