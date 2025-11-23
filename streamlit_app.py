@@ -62,7 +62,7 @@ EXCLUDED_FROM_QUICK_SELL = SPECIAL_ITEMS + FUSED_FISH
 
 RARE_LOCATION_COSTS = {
     "coin": 1500,
-    "fish": {"대멸치": 10, "대붕어": 10, "대복어": 10, "대방어": 10, "대날치": 10} 
+    "fish": {"대멸치": 10, "대붕어": 10} 
 }
 
 # ================= 1. 세션 초기화 =================
