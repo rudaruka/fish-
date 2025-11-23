@@ -44,7 +44,7 @@ price_map["떡밥"] = 50
 
 shop_items = {
     "떡밥": {
-        "price": 50,
+        "price": 200,
         "desc": "낚시 1회당 1개 필요!"
     }
 }
@@ -336,6 +336,36 @@ with col1:
             for f in fish_caught: catch_fish(f)
             st.success(f"{prefix}{success_msg_prefix}{', '.join(fish_caught)} 낚았다! (남은 떡밥: {st.session_state.bait}개)")
             random_event(event_rate + 0.1)
+            st.rerun()
+
+    # 3번 낚시 (떡밥 모두 소모)
+    bait_count = st.session_state.bait
+    button_text_3 = f"{prefix}3번 낚시: **떡밥 모두 사용 ({bait_count}개)**"
+    
+    if st.button(button_text_3, key="fish_all", disabled=bait_count < 1):
+        if bait_count >= 1:
+            
+            fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=bait_count)
+            
+            # 물고기 획득
+            for f in fish_caught: catch_fish(f)
+            
+            # 떡밥 소모
+            st.session_state.bait = 0
+            
+            # 결과 메시지
+            if bait_count == 1:
+                 st.success(f"{prefix}{success_msg_prefix}{fish_caught[0]} 낚았다! (떡밥 모두 소진)")
+            else:
+                # 획득한 물고기 종류별로 카운트하여 표시
+                catch_counts = Counter(fish_caught)
+                summary_msg = ', '.join([f'{f} x{c}' for f, c in catch_counts.items()])
+                
+                st.success(f"{prefix}{success_msg_prefix}총 **{bait_count}회** 낚시 성공! ({summary_msg}) (떡밥 모두 소진)")
+                
+            # 전체 소모 시, 랜덤 이벤트 발생 확률을 높임
+            total_event_rate = event_rate + (bait_count * 0.01)
+            random_event(total_event_rate)
             st.rerun()
 
 
