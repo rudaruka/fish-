@@ -11,7 +11,6 @@ def initialize_session_state():
     AttributeError를 방지합니다.
     """
     
-    # 기본값 딕셔너리 정의
     defaults = {
         "coin": 0,
         "inventory": [],
@@ -22,7 +21,6 @@ def initialize_session_state():
     }
     
     # 딕셔너리 타입 검사 및 초기화
-    # '자동 낚시권' 제거됨
     if "items" not in st.session_state or not isinstance(st.session_state.items, dict):
         st.session_state.items = {
             "강화 미끼": 0,
@@ -60,7 +58,6 @@ for base, fused in fusion_map.items():
 
 price_map["오래된 지도 조각"] = 5000
 
-# '자동 낚시권' 제거됨
 shop_items = {
     "강화 미끼": {"price": 500, "desc": "낚싯대 강화에 필요한 핵심 재료입니다."},
 }
@@ -120,7 +117,6 @@ def get_fishing_weights():
     ]
     return weights
 
-# auto_fish 함수 제거됨
 
 # ================= 4. UI 렌더링 =================
 st.title("🎣 낚시는 운이야!!")
@@ -157,8 +153,6 @@ col1,col2,col3 = st.columns(3)
 with col1:
     st.subheader("🎣 낚시하기")
     
-    # '자동 낚시' 버튼 제거됨
-
     if st.session_state.location == "희귀 낚시터":
         if st.button("희귀 낚시 1회", key="rare_1"):
             fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
@@ -195,11 +189,15 @@ with col2:
         st.info("인벤토리가 비어 있습니다.")
     st.write("---")
     st.subheader("🛒 구매 아이템")
-    # 초기화로 인해 items는 dict임이 보장됨
-    items_dict = st.session_state.items
+    
+    # 🌟 수정된 안전 로직 🌟
+    # st.session_state.items가 딕셔너리가 아닐 경우 (None일 경우 포함) 빈 딕셔너리로 대체
+    items_dict = st.session_state.items if isinstance(st.session_state.items, dict) else {}
+    
+    # 이제 items_dict는 항상 딕셔너리이므로 .values() 호출이 안전함
     if any(items_dict.values()):
         for item, cnt in items_dict.items():
-            if cnt>0:
+            if cnt > 0:
                 st.write(f"**{item}** x **{cnt}**")
     else:
         st.info("구매한 아이템이 없습니다.")
@@ -220,6 +218,7 @@ if st.session_state.shop_open:
     if next_level in ROD_UPGRADE_COSTS:
         cost = ROD_UPGRADE_COSTS[next_level]
         # 안전하게 강화 미끼 수량 조회
+        # st.session_state.items가 딕셔너리임을 보장하는 안전한 get 호출
         current_bait = st.session_state.items.get("강화 미끼", 0)
         
         st.write(f"**현재 레벨: Lv.{current_level}**")
@@ -241,10 +240,8 @@ if st.session_state.shop_open:
 
     ## 아이템 구매
     st.subheader("🛒 아이템 구매")
-    # '자동 낚시권'이 제거되어 shop_cols를 1로 줄일 수 있지만, 레이아웃 유지를 위해 2로 유지하거나 1로 변경 가능
     shop_cols = st.columns(2)
     
-    # shop_items에 '강화 미끼'만 남아있음
     for i,(item,data) in enumerate(shop_items.items()):
         with shop_cols[i%2]:
             st.write(f"**{item}** ({data['price']} 코인)")
@@ -253,7 +250,6 @@ if st.session_state.shop_open:
                 if st.session_state.coin >= data["price"]:
                     st.session_state.coin -= data["price"]
                     
-                    # 안전한 구매 로직
                     current_count = st.session_state.items.get(item, 0)
                     st.session_state.items[item] = current_count + 1
                     st.success(f"**{item}** 1개 구매 완료!")
