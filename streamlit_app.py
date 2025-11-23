@@ -46,7 +46,7 @@ price_map["오래된 지도 조각"] = 5000
 # 🛒 떡밥 상점 아이템 추가
 shop_items = {
     "떡밥": {
-        "price": 50,
+        "price": 200,
         "desc": "낚시 1회당 1개 필요!"
     }
 }
@@ -148,9 +148,9 @@ if temp_location != current_location:
 
         entry_options = []
         if has_coin:
-            entry_options.append("코인만 소모 (1500 코인)")
+            entry_options.append("코인만 소모 (2000 코인)")
         if has_fish:
-            entry_options.append("대멸치 10마리 + 대붕어 10마리 소모")
+            entry_options.append("대멸치 20마리 + 대붕어 20마리 소모")
 
         if not entry_options:
             st.warning("❗ 입장 조건 부족")
@@ -204,54 +204,42 @@ with col1:
         
         # 1번 낚시 (떡밥 1 소모)
         if st.button("1번 낚시 **(떡밥 1 소모)**", key="normal_1", disabled=st.session_state.bait < 1):
-            if st.session_state.bait < 1: # 🌟 보호 로직
-                st.error("❗ 떡밥이 부족하여 낚시를 진행할 수 없습니다.")
-                return 
-            
-            st.session_state.bait -= 1 # 떡밥 소모
-            fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
-            catch_fish(fish)
-            st.success(f"**{fish}** 낚았다! (남은 떡밥: {st.session_state.bait}개)")
-            random_event(0.15)
+            if st.session_state.bait >= 1: # 🌟 보호 로직
+                st.session_state.bait -= 1
+                fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
+                catch_fish(fish)
+                st.success(f"**{fish}** 낚았다!")
+                random_event(0.15)
         
         # 2번 낚시 (떡밥 2 소모)
         if st.button("2번 낚시 **(떡밥 2 소모)**", key="normal_2", disabled=st.session_state.bait < 2):
-            if st.session_state.bait < 2: # 🌟 보호 로직
-                st.error("❗ 떡밥이 부족하여 낚시를 진행할 수 없습니다.")
-                return 
-            
-            st.session_state.bait -= 2 # 떡밥 소모
-            fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=2)
-            for f in fish_caught: catch_fish(f)
-            st.success(f"{', '.join(fish_caught)} 낚았다! (남은 떡밥: {st.session_state.bait}개)")
-            random_event(0.25)
+            if st.session_state.bait >= 2: # 🌟 보호 로직
+                st.session_state.bait -= 2
+                fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=2)
+                for f in fish_caught: catch_fish(f)
+                st.success(f"{', '.join(fish_caught)} 낚았다!")
+                random_event(0.25)
 
     # 희귀 낚시
     else:
         
         # 희귀 낚시 1회 (떡밥 1 소모)
         if st.button("희귀 낚시 1회 **(떡밥 1 소모)**", key="rare_1", disabled=st.session_state.bait < 1):
-            if st.session_state.bait < 1: # 🌟 보호 로직
-                st.error("❗ 떡밥이 부족하여 낚시를 진행할 수 없습니다.")
-                return 
-            
-            st.session_state.bait -= 1 # 떡밥 소모
-            fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
-            catch_fish(fish)
-            st.success(f"💎 {fish} 낚았다! (남은 떡밥: {st.session_state.bait}개)")
-            random_event(0.2)
+            if st.session_state.bait >= 1: # 🌟 보호 로직
+                st.session_state.bait -= 1
+                fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
+                catch_fish(fish)
+                st.success(f"💎 {fish} 낚았다!")
+                random_event(0.2)
 
         # 희귀 낚시 2회 (떡밥 2 소모)
         if st.button("희귀 낚시 2회 **(떡밥 2 소모)**", key="rare_2", disabled=st.session_state.bait < 2):
-            if st.session_state.bait < 2: # 🌟 보호 로직
-                st.error("❗ 떡밥이 부족하여 낚시를 진행할 수 없습니다.")
-                return 
-            
-            st.session_state.bait -= 2 # 떡밥 소모
-            fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=2)
-            for f in fish_caught: catch_fish(f)
-            st.success(f"💎 {', '.join(fish_caught)} 낚았다! (남은 떡밥: {st.session_state.bait}개)")
-            random_event(0.35)
+            if st.session_state.bait >= 2: # 🌟 보호 로직
+                st.session_state.bait -= 2
+                fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=2)
+                for f in fish_caught: catch_fish(f)
+                st.success(f"💎 {', '.join(fish_caught)} 낚았다!")
+                random_event(0.35)
 
 # ================= 🎒 인벤토리 =================
 with col2:
