@@ -18,8 +18,6 @@ def initialize_session_state():
         "rod_level": 0
     }
     
-    # 딕셔너리 'items' 제거됨
-    
     # Set 타입 검사 및 초기화 (fishbook)
     if "fishbook" not in st.session_state or not isinstance(st.session_state.fishbook, set):
         st.session_state.fishbook = set()
@@ -121,21 +119,68 @@ st.divider()
 st.subheader("🌍 낚시터 선택")
 current_location = st.session_state.location
 temp_location = st.selectbox("현재 낚시터",
-                              ["강가","바다","희귀 낚시터"],
-                              index=["강가","바다","희귀 낚시터"].index(current_location),
-                              key="location_selector")
+                             ["강가","바다","희귀 낚시터"],
+                             index=["강가","바다","희귀 낚시터"].index(current_location),
+                             key="location_selector")
+
 if temp_location != current_location:
     if temp_location == "희귀 낚시터":
-        if st.session_state.coin >= 1000:
-            st.session_state.coin -= 1000
+        
+        # --- [수정된 희귀 낚시터 입장 로직] ---
+        required_coin = 1000
+        required_fish_qty = 20 # 요청하신 대멸치 20마리 소모로 설정
+        required_fish_name = "대멸치"
+        
+        current_inventory_counts = Counter(st.session_state.inventory)
+        has_fish = current_inventory_counts.get(required_fish_name, 0) >= required_fish_qty
+        has_coin = st.session_state.coin >= required_coin
+        
+        st.markdown("##### 💎 희귀 낚시터 입장 조건")
+        st.write(f"💰 코인: **{required_coin}** (현재: {st.session_state.coin})")
+        st.write(f"🐟 {required_fish_name} **{required_fish_qty}마리**: (현재 {current_inventory_counts.get(required_fish_name, 0)}개)")
+
+        # 입장 방식 선택 (코인, 대멸치)
+        entry_options = []
+        if has_coin:
+            entry_options.append("코인만 소모 (1000 코인)")
+        if has_fish:
+            entry_options.append(f"{required_fish_name} {required_fish_qty}마리 소모")
+            
+        if not entry_options:
+            st.warning(f"❗ 코인(1000)과 {required_fish_name}({required_fish_qty}마리) 모두 부족합니다.")
+            st.session_state.location_selector = current_location
+            st.stop()
+            
+        entry_method = st.radio("입장 방법 선택", entry_options, key="entry_radio")
+        
+        can_enter = False
+        cost_msg = ""
+        
+        if "코인만 소모" in entry_method:
+            if has_coin:
+                st.session_state.coin -= required_coin
+                cost_msg = f"🔥 희귀 낚시터 입장! (-{required_coin} 코인)"
+                can_enter = True
+        
+        elif f"{required_fish_name} {required_fish_qty}마리 소모" in entry_method:
+            if has_fish:
+                # 인벤토리에서 물고기 소모
+                for _ in range(required_fish_qty):
+                    st.session_state.inventory.remove(required_fish_name)
+                cost_msg = f"🔥 희귀 낚시터 입장! (-{required_fish_qty} {required_fish_name})"
+                can_enter = True
+                
+        if can_enter:
             st.session_state.location = temp_location
-            st.success("🔥 희귀 낚시터 입장! (-1000코인)")
+            st.success(cost_msg)
         else:
-            st.warning("❗ 코인이 부족합니다! (1000 필요)")
-            st.session_state.location_selector = current_location 
+            # 선택지를 보여준 후, 만약 조건을 충족하지 못하고 잘못된 상태로 왔다면 현재 위치로 되돌림
+            st.session_state.location_selector = current_location
+            
     else:
+        # 일반 낚시터 이동
         st.session_state.location = temp_location
-        st.info(f"📍 낚시터를 {temp_location} 로 변경")
+        st.info(f"📍 낚시터를 **{temp_location}** 로 변경")
     
 st.markdown(f"**현재 위치:** {st.session_state.location}")
 st.divider()
@@ -181,8 +226,6 @@ with col2:
     else:
         st.info("인벤토리가 비어 있습니다.")
     
-    # 구매 아이템 섹션 제거됨
-
 # ================= 🏪 상점 / 강화 =================
 with col3:
     st.subheader("🏪 상점 / 강화")
@@ -202,14 +245,11 @@ if st.session_state.shop_open:
         st.write(f"**현재 레벨: Lv.{current_level}**")
         st.write(f"**다음 레벨: Lv.{next_level}**")
         st.write(f"필요 코인: **{cost['coin']}** (현재: {st.session_state.coin})")
-        # 강화 미끼 요구사항 제거됨
         st.write(f"성공 확률: **{int(cost['success_rate']*100)}%**")
         
-        # 강화 미끼 조건 제거됨
         can_upgrade = st.session_state.coin >= cost['coin'] 
         if st.button(f"Lv.{next_level} 강화 시도", key=f"upgrade_{next_level}", disabled=not can_upgrade):
             st.session_state.coin -= cost['coin']
-            # 강화 미끼 소모 로직 제거됨
             if random.random() < cost['success_rate']:
                 st.session_state.rod_level = next_level
                 st.success(f"🎉 **강화 성공!** 낚싯대 Lv.{next_level}")
@@ -223,7 +263,6 @@ if st.session_state.shop_open:
     if not shop_items:
         st.info("현재 구매 가능한 아이템이 없습니다.")
     else:
-        # 이 부분은 현재 비어 있지만, 혹시 나중에 아이템이 추가될 경우를 대비해 구조는 유지
         shop_cols = st.columns(2)
         for i,(item,data) in enumerate(shop_items.items()):
             with shop_cols[i%2]:
