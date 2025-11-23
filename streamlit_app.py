@@ -11,7 +11,7 @@ def initialize_session_state():
         "location": "강가",
         "location_selector": "강가",
         "rod_level": 0,
-        "bait": 2    # 🧵 떡밥 기본 2개
+        "bait": 4    # 🧵 떡밥 기본 4개
     }
 
     if "fishbook" not in st.session_state or not isinstance(st.session_state.fishbook, set):
@@ -46,8 +46,8 @@ price_map["오래된 지도 조각"] = 5000
 # 🛒 떡밥 상점 아이템 추가
 shop_items = {
     "떡밥": {
-        "price": 150,
-        "desc": "낚시 1회당 1개 필요!"
+        "price":  50,
+        "desc": "낚시를 하려면 무조건 필요한 아이템입니다!(낚시 1회당 1개 사용됨)"
     }
 }
 
@@ -107,8 +107,8 @@ def get_fishing_weights():
     return weights
 
 # ================= 4. UI =================
-st.title("🎣 낚시터에 오신 것을 환영합니다!!")
-st.subheader("이게 첫 작품이라고?! 🐟")
+st.title("🎣낚시")
+st.subheader("이게 첫 작품이라고?! 말도 안돼!!")
 
 st.write(f"💰 현재 코인: **{st.session_state.coin}**")
 st.write(f"🧵 현재 떡밥: **{st.session_state.bait}개**")    # ← 떡밥 표시
