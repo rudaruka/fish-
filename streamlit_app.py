@@ -62,7 +62,7 @@ EXCLUDED_FROM_QUICK_SELL = SPECIAL_ITEMS + FUSED_FISH
 
 RARE_LOCATION_COSTS = {
     "coin": 1500,
-    "fish": {"대멸치": 10, "대붕어": 10} 
+    "fish": {"대멸치": 10, "대붕어": 10, "대복어": 10, "대방어": 10, "대날치": 10} 
 }
 
 # ================= 1. 세션 초기화 =================
@@ -122,46 +122,66 @@ def check_for_map_completion():
     st.toast("🏝️ 잃어버린 섬 해금!", icon='🗺️')
 
 
-def random_event(event_rate):
-    """랜덤 이벤트를 발생시키는 함수 (event_rate가 1.0이면 이벤트 발동을 보장)"""
+def random_event(event_rate, location):
+    """
+    랜덤 이벤트를 발생시키고 결과를 요약 딕셔너리로 반환합니다.
+    {
+        'coin': int, 
+        'bonus_fish': list, 
+        'lost_fish': list, 
+        'map_pieces': int, 
+        'special_bonus': int,
+        'no_effect': int
+    }
+    """
+    summary = {
+        'coin': 0, 'bonus_fish': [], 'lost_fish': [], 
+        'map_pieces': 0, 'special_bonus': 0, 'no_effect': 0
+    }
     
-    # 떡밥 모두 소진 낚시에서 호출될 때는 이미 이벤트 발생이 결정된 상태 (event_rate=1.0)
-    # 1회/2회 낚시에서 호출될 때는 event_rate에 따라 발생
-    if random.random() < event_rate or event_rate == 1.0: 
-        st.info("🎲 랜덤 이벤트 발생!")
+    if random.random() < event_rate: 
         event = random.randint(1, 5)
-        if event == 1:
+        
+        if event == 1: # 코인 보너스
             bonus = random.randint(10, 80)
             st.session_state.coin += bonus
-            st.success(f"💰 보너스 코인 +{bonus}!")
-        elif event == 2:
+            summary['coin'] += bonus
+        
+        elif event == 2: # 물고기 보너스
             f2 = random.choice(fish_list)
             catch_fish(f2)
-            st.success(f"🎣 보너스 물고기 **{f2}** 획득!")
-        elif event == 3:
+            summary['bonus_fish'].append(f2)
+            
+        elif event == 3: # 물고기 손실
             if st.session_state.inventory:
                 losable_items = [i for i in st.session_state.inventory if i not in SPECIAL_ITEMS]
                 if losable_items:
                     lost = random.choice(losable_items)
                     st.session_state.inventory.remove(lost)
-                    st.error(f"🔥 물고기(**{lost}**) 1마리 도망감!")
+                    summary['lost_fish'].append(lost)
                 else:
-                    st.warning("도망갈 물고기가 없어요.")
+                    summary['no_effect'] += 1
             else:
-                st.warning("도망갈 물고기가 없어요.")
-        elif event == 5 and st.session_state.location == "희귀 낚시터":
+                summary['no_effect'] += 1
+                
+        elif event == 5 and location == "희귀 낚시터": # 지도 조각 획득
             item_name = "오래된 지도 조각"
             catch_fish(item_name)
-            st.balloons()
-            st.success(f"🗺️ 전설 아이템 획득! **{item_name}** (+{price_map[item_name]} 코인)")
-        elif event == 5 and st.session_state.location == "전설의 해역":
+            summary['map_pieces'] += 1
+            
+        elif event == 5 and location == "전설의 해역": # 전설 해역 보너스 코인
             st.session_state.coin += 500
-            st.success("💎 전설의 해역 보너스! 500 코인 획득!")
-        elif event == 5 and st.session_state.location == "잃어버린 섬":
+            summary['special_bonus'] += 500
+        
+        elif event == 5 and location == "잃어버린 섬": # 잃어버린 섬 보너스 코인
             st.session_state.coin += 1500
-            st.success("💰 **잃어버린 섬 보너스!** 1500 코인 획득!")
-        else:
-            st.success("✨ 신비한 바람이 분다… 좋은 기운이 느껴진다!")
+            summary['special_bonus'] += 1500
+            
+        else: # 기타 긍정적 효과 (메시지 대신 누적)
+            summary['no_effect'] += 1
+    
+    return summary
+
 
 def get_fishing_weights():
     weights = fish_weights.copy()
@@ -191,7 +211,7 @@ def get_fishing_weights():
             if f in ["킹크랩", "개복치", "메가참치", "번개상어", "심연참돔"]:
                 weights[i] *= 25 
             else:
-                weights[i] /= 10 
+                weights[i} /= 10 
             if f in fusion_map:
                 weights[i] *= 0 
     
@@ -328,7 +348,12 @@ with col1:
             fish = random.choices(fish_list, weights=get_fishing_weights(), k=1)[0]
             catch_fish(fish)
             st.success(f"{prefix}{success_msg_prefix}**{fish}** 낚았다! (남은 떡밥: {st.session_state.bait}개)")
-            random_event(event_rate)
+            
+            # 단일 낚시는 이전처럼 즉시 이벤트 발생
+            event_result = random_event(event_rate, current_location)
+            if any(event_result.values()):
+                st.info("🎲 랜덤 이벤트 발동!")
+            
             st.rerun()
     
     # 2번 낚시 (떡밥 2 소모)
@@ -339,7 +364,12 @@ with col1:
             fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=2)
             for f in fish_caught: catch_fish(f)
             st.success(f"{prefix}{success_msg_prefix}{', '.join(fish_caught)} 낚았다! (남은 떡밥: {st.session_state.bait}개)")
-            random_event(event_rate + 0.1)
+            
+            # 단일 낚시는 이전처럼 즉시 이벤트 발생
+            event_result = random_event(event_rate + 0.1, current_location)
+            if any(event_result.values()):
+                st.info("🎲 랜덤 이벤트 발동!")
+
             st.rerun()
 
     # 3번 낚시 (떡밥 모두 소모) 
@@ -349,36 +379,66 @@ with col1:
     if st.button(button_text_3, key="fish_all", disabled=bait_count < 1):
         if bait_count >= 1:
             
+            # 1. 낚시 결과 처리
             fish_caught = random.choices(fish_list, weights=get_fishing_weights(), k=bait_count)
-            
-            # 물고기 획득
             for f in fish_caught: catch_fish(f)
             
-            # 떡밥 소모
             st.session_state.bait = 0
             
-            # 결과 메시지
             if bait_count == 1:
                  st.success(f"{prefix}{success_msg_prefix}{fish_caught[0]} 낚았다! (떡밥 모두 소진)")
             else:
-                # 획득한 물고기 종류별로 카운트하여 표시
                 catch_counts = Counter(fish_caught)
                 summary_msg = ', '.join([f'{f} x{c}' for f, c in catch_counts.items()])
-                
                 st.success(f"{prefix}{success_msg_prefix}총 **{bait_count}회** 낚시 성공! ({summary_msg}) (떡밥 모두 소진)")
-                
-            # 💡 강화된 부분: 떡밥 개수만큼 랜덤 이벤트 시도
-            event_base_rate = event_rate 
+            
+            # 2. 이벤트 결과 누적 및 요약
+            total_event_summary = {
+                'coin': 0, 'bonus_fish': [], 'lost_fish': [], 
+                'map_pieces': 0, 'special_bonus': 0, 'no_effect': 0
+            }
             events_triggered = 0
             
-            for i in range(bait_count):
-                # 떡밥 1개당 기본 확률로 이벤트 시도
-                if random.random() < event_base_rate:
-                    random_event(1.0) # random_event 내부에서 100% 실행되도록 인자 전달
+            for _ in range(bait_count):
+                event_result = random_event(event_rate, current_location)
+                
+                # 이벤트 발생 여부 확인 및 누적
+                if any(event_result.values()):
                     events_triggered += 1
+                    total_event_summary['coin'] += event_result['coin']
+                    total_event_summary['bonus_fish'].extend(event_result['bonus_fish'])
+                    total_event_summary['lost_fish'].extend(event_result['lost_fish'])
+                    total_event_summary['map_pieces'] += event_result['map_pieces']
+                    total_event_summary['special_bonus'] += event_result['special_bonus']
+                    total_event_summary['no_effect'] += event_result['no_effect']
             
+            # 3. 최종 이벤트 요약 메시지 출력
+            summary_messages = []
+            
+            if total_event_summary['coin'] > 0:
+                summary_messages.append(f"💰 보너스 코인: **+{total_event_summary['coin']}**")
+                
+            if total_event_summary['bonus_fish']:
+                bonus_fish_counts = Counter(total_event_summary['bonus_fish'])
+                fish_list_str = ', '.join([f'{f} x{c}' for f, c in bonus_fish_counts.items()])
+                summary_messages.append(f"🎣 보너스 물고기: **{fish_list_str}**")
+            
+            if total_event_summary['lost_fish']:
+                lost_fish_counts = Counter(total_event_summary['lost_fish'])
+                lost_list_str = ', '.join([f'{f} x{c}' for f, c in lost_fish_counts.items()])
+                summary_messages.append(f"🔥 물고기 손실: **{lost_list_str}**")
+            
+            if total_event_summary['map_pieces'] > 0:
+                summary_messages.append(f"🗺️ 지도 조각: **+{total_event_summary['map_pieces']}**")
+
+            if total_event_summary['special_bonus'] > 0:
+                summary_messages.append(f"💎 특수 보너스 코인: **+{total_event_summary['special_bonus']}**")
+
+            # 요약 메시지 출력
             if events_triggered > 0:
-                 st.info(f"✨ 멀티 낚시 보너스! **랜덤 이벤트 {events_triggered}회** 발동!")
+                st.info(f"🎲 랜덤 이벤트 **{events_triggered}회** 발동 결과:\n\n* " + "\n* ".join(summary_messages))
+            else:
+                 st.info("🎲 랜덤 이벤트 발생 없음.")
 
             st.rerun()
 
