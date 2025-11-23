@@ -110,8 +110,8 @@ def get_fishing_weights():
     return weights
 
 # ================= 4. UI 렌더링 =================
-st.title("🎣 낚시는 운이야!!")
-st.subheader("나만의 낚시 게임, 물고기를 모으고 강화를 시도하세요! 🐟") # 부제목 추가
+st.title("🎣 낚시터에 오신 것을 환영합니다!!")
+st.subheader("이게 첫 작품이라고?! 🐟") # 부제목 추가
 st.write(f"💰 현재 코인: **{st.session_state.coin}**")
 st.write(f"✨ 낚싯대 레벨: **Lv.{st.session_state.rod_level}**")
 st.divider()
@@ -150,7 +150,7 @@ if temp_location != current_location:
         if has_coin:
             entry_options.append("코인만 소모 (1000 코인)")
         if has_fish:
-            entry_options.append("대멸치 10마리 + 대붕어 10마리 소모")
+            entry_options.append("대멸치 30마리 + 대붕어 30마리 소모")
             
         if not entry_options:
             st.warning(f"❗ 코인(1000)과 물고기 조건 모두 부족합니다.")
@@ -168,7 +168,7 @@ if temp_location != current_location:
                 cost_msg = f"🔥 희귀 낚시터 입장! (-{required_coin} 코인)"
                 can_enter = True
         
-        elif "대멸치 10마리 + 대붕어 10마리 소모" in entry_method:
+        elif "대멸치 30마리 + 대붕어 30마리 소모" in entry_method:
             if has_fish:
                 # 인벤토리에서 물고기 소모
                 for name, qty in required_fish.items():
