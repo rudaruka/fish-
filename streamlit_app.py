@@ -111,6 +111,7 @@ def get_fishing_weights():
 
 # ================= 4. UI 렌더링 =================
 st.title("🎣 낚시는 운이야!!")
+st.subheader("나만의 낚시 게임, 물고기를 모으고 강화를 시도하세요! 🐟") # 부제목 추가
 st.write(f"💰 현재 코인: **{st.session_state.coin}**")
 st.write(f"✨ 낚싯대 레벨: **Lv.{st.session_state.rod_level}**")
 st.divider()
@@ -128,26 +129,31 @@ if temp_location != current_location:
         
         # --- [수정된 희귀 낚시터 입장 로직] ---
         required_coin = 1000
-        required_fish_qty = 20 # 요청하신 대멸치 20마리 소모로 설정
-        required_fish_name = "대멸치"
+        required_fish = {"대멸치": 10, "대붕어": 10}
         
         current_inventory_counts = Counter(st.session_state.inventory)
-        has_fish = current_inventory_counts.get(required_fish_name, 0) >= required_fish_qty
         has_coin = st.session_state.coin >= required_coin
+        has_fish = all(current_inventory_counts.get(name, 0) >= qty for name, qty in required_fish.items())
         
         st.markdown("##### 💎 희귀 낚시터 입장 조건")
         st.write(f"💰 코인: **{required_coin}** (현재: {st.session_state.coin})")
-        st.write(f"🐟 {required_fish_name} **{required_fish_qty}마리**: (현재 {current_inventory_counts.get(required_fish_name, 0)}개)")
+        
+        # 물고기 조건 표시
+        fish_status_msg = ""
+        for name, qty in required_fish.items():
+            current_qty = current_inventory_counts.get(name, 0)
+            status = '✔' if current_qty >= qty else '✖'
+            fish_status_msg += f"**{name}** {qty}마리 (현재 {current_qty}개) ({status}) / "
+        st.write(f"🐟 물고기: {fish_status_msg[:-3]}")
 
-        # 입장 방식 선택 (코인, 대멸치)
         entry_options = []
         if has_coin:
             entry_options.append("코인만 소모 (1000 코인)")
         if has_fish:
-            entry_options.append(f"{required_fish_name} {required_fish_qty}마리 소모")
+            entry_options.append("대멸치 10마리 + 대붕어 10마리 소모")
             
         if not entry_options:
-            st.warning(f"❗ 코인(1000)과 {required_fish_name}({required_fish_qty}마리) 모두 부족합니다.")
+            st.warning(f"❗ 코인(1000)과 물고기 조건 모두 부족합니다.")
             st.session_state.location_selector = current_location
             st.stop()
             
@@ -162,12 +168,13 @@ if temp_location != current_location:
                 cost_msg = f"🔥 희귀 낚시터 입장! (-{required_coin} 코인)"
                 can_enter = True
         
-        elif f"{required_fish_name} {required_fish_qty}마리 소모" in entry_method:
+        elif "대멸치 10마리 + 대붕어 10마리 소모" in entry_method:
             if has_fish:
                 # 인벤토리에서 물고기 소모
-                for _ in range(required_fish_qty):
-                    st.session_state.inventory.remove(required_fish_name)
-                cost_msg = f"🔥 희귀 낚시터 입장! (-{required_fish_qty} {required_fish_name})"
+                for name, qty in required_fish.items():
+                    for _ in range(qty):
+                        st.session_state.inventory.remove(name)
+                cost_msg = f"🔥 희귀 낚시터 입장! (-{required_fish['대멸치']} 대멸치, -{required_fish['대붕어']} 대붕어)"
                 can_enter = True
                 
         if can_enter:
