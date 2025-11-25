@@ -4,8 +4,8 @@ from collections import Counter
 
 # ================= 0. 페이지 설정 및 CSS 스타일링 =================
 st.set_page_config(
-    page_title="바다의 전설: 낚시 마스터",
-    layout="wide",
+    page_title="바다의 전설: 낚시 마스터!",
+    layout="centered",
     initial_sidebar_state="collapsed"
 )
 
