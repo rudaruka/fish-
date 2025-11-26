@@ -39,7 +39,7 @@ fish_prob = {
     # 🦀 특수/초희귀 물고기 (Prob 1~3) - '전설의 해역'에서 확률 증가
     "청새치": 3, "황새치": 2, "랍스터": 2, "킹크랩": 1, "개복치": 1, "해마": 3,
 
-    # ✨ 새로운 합성 기반 물고기 (Prob 15~20)
+    # ✨ 새로운 합성 기반 물고기 (Prob 15~20) - 합성 기반 물고기 4종 추가 (방어, 날치, 열기, 붕어)
     "방어": 20, "날치": 15, "열기": 15,
     
     # 🔱 심해/전설 물고기 (Prob 0.5) - '잃어버린 섬' 전용
@@ -57,10 +57,10 @@ price_map = {fish: int((100 - prob) * 100) + 1000 for fish, prob in fish_prob.it
 fusion_map = {
     "멸치": "대멸치", "복어": "대복어", "누치": "대누치",
     "정어리": "대정어리", 
-    "붕어": "대붕어", 
+    "붕어": "대붕어", # 붕어 추가 (합성 기반)
     "방어": "대방어", 
     "날치": "대날치", 
-    "열기": "대열기" # 총 8종
+    "열기": "대열기" # 열기 추가 (총 8종)
 }
 
 # 2. 합성 물고기 가격 정의
@@ -81,14 +81,9 @@ RARE_LOCATION_COSTS = {
 }
 MAP_PIECES_NEEDED = 5 # 지도 조각 합성 개수
 
-# 🚨 괴수 물고기 5종 정의
-MONSTER_FISH = ["암흑고래수리", "화염비늘룡어", "태풍포식상어", "얼음유령해마", "심해철갑괴치"]
-# 🚨 일반 물고기 정의 (총 60종에서 5종을 제외)
-NORMAL_FISH = [item for item in fish_list if item not in MONSTER_FISH]
-
-# 🚨 ALL_COLLECTIBLES 정의를 fusion_map 정의 이후로 옮겼습니다. (총 70종)
+# 🚨 ALL_COLLECTIBLES 정의를 fusion_map 정의 이후로 옮겼습니다.
 SPECIAL_ITEMS = ["오래된 지도 조각", "완성된 오래된 지도"] # 2종
-FUSED_FISH = list(fusion_map.values()) # 8종 
+FUSED_FISH = list(fusion_map.values()) # 8종 (총 도감 항목: 60 + 2 + 8 = 70종)
 ALL_COLLECTIBLES = set(fish_list) | set(SPECIAL_ITEMS) | set(FUSED_FISH) 
 EXCLUDED_FROM_QUICK_SELL = SPECIAL_ITEMS + FUSED_FISH
 
@@ -133,7 +128,7 @@ def get_current_weights():
             if fish in ["고등어", "참치", "광어", "갈치", "병어"]:
                 weight *= 2.5
         elif location == "전설의 해역":
-            if fish in ["청새치", "황새치", "랍스터", "킹크랩"] + MONSTER_FISH:
+            if fish in ["청새치", "황새치", "랍스터", "킹크랩", "암흑고래수리", "화염비늘룡어", "태풍포식상어", "얼음유령해마", "심해철갑괴치"]:
                 weight *= 3.0
         elif location == "잃어버린 섬":
             if fish in ["메가참치", "번개상어", "심연참돔"]:
@@ -144,8 +139,7 @@ def get_current_weights():
 
 def fish(message_placeholder):
     weights = get_current_weights()
-    # 낚시 시도 (fish_list 60종 + 지도 조각)
-    fished_item = random.choices(fish_list + ["오래된 지도 조각"], weights=weights + [10], k=1)[0]
+    fished_item = random.choices(fish_list + SPECIAL_ITEMS, weights=weights + [10, 0], k=1)[0]
     
     # 🎣 낚싯대 레벨에 따른 획득 개수
     num_fished = st.session_state.rod_level
@@ -160,8 +154,13 @@ def fish(message_placeholder):
         st.session_state.fishbook.add(fished_item)
         msg = "🗺️ **오래된 지도 조각** 1개를 발견했습니다!"
         
+    elif fished_item == "완성된 오래된 지도": # 확률이 0이라 사실상 낚이지 않음
+        st.session_state.inventory[fished_item] += 1
+        st.session_state.fishbook.add(fished_item)
+        msg = "🧭 **완성된 오래된 지도**를 획득했습니다! (판매 불가)"
+
     else:
-        # 이 else는 weights에 0이 아닌 값이 있을 때만 실행됨 (완성된 지도는 낚이지 않음)
+        # 이 else는 weights에 0이 아닌 값이 있을 때만 실행됨
         msg = "아무것도 낚지 못했습니다..."
         
     message_placeholder.info(msg)
@@ -238,7 +237,7 @@ def fuse_fish():
     
     for base_fish in fusion_targets:
         fused_fish = fusion_map[base_fish]
-        count = st.session_state.inventory.get(base_fish, 0) # get을 사용하여 에러 방지
+        count = st.session_state.inventory[base_fish]
         
         # 10마리 단위로 합성 가능
         if count >= 10:
@@ -323,7 +322,7 @@ inventory_col, fishbook_col = st.columns(2)
 with inventory_col:
     if st.button("🎒 인벤토리 열기/닫기", key="toggle_inventory"):
         st.session_state.inventory_open = not st.session_state.inventory_open
-        st.session_state.fishbook_open = False 
+        st.session_state.fishbook_open = False # 도감은 닫기
 
     if st.session_state.inventory_open:
         st.markdown("#### 인벤토리 현황")
@@ -346,51 +345,33 @@ with inventory_col:
 with fishbook_col:
     if st.button("📖 도감 열기/닫기", key="toggle_fishbook"):
         st.session_state.fishbook_open = not st.session_state.fishbook_open
-        st.session_state.inventory_open = False 
+        st.session_state.inventory_open = False # 인벤토리는 닫기
 
     if st.session_state.fishbook_open:
-        # 총 도감 항목 수 (60종 물고기 + 2종 지도 + 8종 합성 물고기 = 70)
+        # 🚨 수정된 총 도감 항목 수 (60종 물고기 + 2종 지도 + 8종 합성 물고기 = 70)
         st.markdown(f"#### 도감 현황 ({len(st.session_state.fishbook)}/{len(ALL_COLLECTIBLES)})")
         
         if st.session_state.fishbook_complete:
             st.success("🏆 도감 완성! 전설의 낚시꾼!")
         
         # 수집 항목 분류
-        fish_caught = [item for item in ALL_COLLECTIBLES if item in NORMAL_FISH]
-        monster_caught = [item for item in ALL_COLLECTIBLES if item in MONSTER_FISH] # 5종
+        fish_caught = [item for item in ALL_COLLECTIBLES if item in fish_list]
         fused_caught = [item for item in ALL_COLLECTIBLES if item in FUSED_FISH]
         special_caught = [item for item in ALL_COLLECTIBLES if item in SPECIAL_ITEMS]
         
-        # 1. 🐟 일반 물고기 (55종)
-        st.markdown("**🐟 일반 물고기** (55종)")
+        st.markdown("**🐟 물고기** (60종)")
         cols = st.columns(5)
         for i, item in enumerate(sorted(fish_caught)):
             status = "✅" if item in st.session_state.fishbook else "❓"
             cols[i % 5].markdown(f"*{status} {item}*")
-        
-        st.markdown("---")
-        
-        # 2. ☣️ 괴수 물고기 (5종) - '이름--' 형식 적용
-        st.markdown("**☣️ 괴수 물고기** (5종)")
-        cols = st.columns(5)
-        for i, item in enumerate(sorted(monster_caught)):
-            status = "✅" if item in st.session_state.fishbook else "❓"
-            display_name = f"{item}--" 
-            cols[i % 5].markdown(f"*{status} {display_name}*")
             
-        st.markdown("---")
-
-        # 3. 🧪 합성 물고기 (8종)
-        st.markdown("#### 🧪 합성 물고기 (8종)")
+        st.markdown("**🧪 합성 물고기** (8종)")
         cols = st.columns(5)
         for i, item in enumerate(sorted(fused_caught)):
             status = "✅" if item in st.session_state.fishbook else "❓"
             cols[i % 5].markdown(f"*{status} {item}*")
 
-        st.markdown("---")
-        
-        # 4. 🗺️ 특수 아이템 (2종)
-        st.markdown("#### 🗺️ 특수 아이템 (2종)")
+        st.markdown("**🗺️ 특수 아이템** (2종)")
         cols = st.columns(5)
         for i, item in enumerate(sorted(special_caught)):
             status = "✅" if item in st.session_state.fishbook else "❓"
