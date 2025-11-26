@@ -65,6 +65,20 @@ hr {
 .uncollected {
     color: #757575; /* 회색 유지 */
 }
+/* 🚨 도감 Grid 레이아웃 적용 (정렬 개선) */
+.fishbook-grid {
+    display: grid;
+    /* 5개의 동일한 크기 열을 만듭니다. (글자 수에 관계없이 정렬) */
+    grid-template-columns: repeat(5, 1fr); 
+    gap: 5px 0px; /* 줄 간격 5px, 열 간격 0px */
+}
+/* Grid 항목 스타일 */
+.fishbook-item {
+    font-size: 0.9em;
+    padding: 3px 5px;
+    border-radius: 3px;
+    white-space: nowrap; /* 항목이 줄 바꿈 되는 것을 방지 */
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -118,7 +132,7 @@ price_map["떡밥"] = 50 # 떡밥의 상점 판매가 (실제 구매가는 shop_
 
 # 🎣 물가 상승 상수 정의 (요청 1: 떡밥 기준치 50원으로 변경)
 MAX_BAIT_INCREASE = 1500 # 최대 가격 상승 한도
-BAIT_INCREASE_STEP = 10  # 1회 상승량
+BAIT_INCREASE_STEP = 10 # 1회 상승량
 CATCH_THRESHOLD_FOR_STEP = 40 # 40마리마다 상승
 BAIT_BASE_PRICE = 50 # 🚨 변경됨: 200 -> 50
 
@@ -455,7 +469,7 @@ if st.session_state.location != "희귀 낚시터":
     
     st.caption(f"필요 물고기: {required_fishes_str}")
     
-    if st.button("🗺️ 희귀 낚시터 입장", disabled=not can_enter_rare or not fish_requirements_met):
+    if st.button("🗺️ 희귀 낚시터 입장", disabled=not can_enter_rare or not fish_requirements_met, key="enter_rare_fishing_spot"):
         
         # 비용 지불
         st.session_state.coin -= RARE_LOCATION_COSTS["coin"]
@@ -472,7 +486,7 @@ if st.session_state.location != "희귀 낚시터":
 # 희귀 낚시터에서 탈출 로직
 if st.session_state.location == "희귀 낚시터":
     st.info("현재 **희귀 낚시터**에 있습니다. 이 곳에서는 희귀 물고기와 지도 조각을 획득할 수 있습니다.")
-    if st.button("⬅️ 강가로 돌아가기"):
+    if st.button("⬅️ 강가로 돌아가기", key="exit_rare_fishing_spot"):
         st.session_state.location = "강가"
         st.success("강가로 돌아왔습니다.")
         st.rerun()
@@ -481,7 +495,7 @@ st.markdown("---")
 
 # 낚시 실행 로직
 if st.session_state.bait > 0:
-    if st.button(f"**낚시하기!** (떡밥 1개 소모)", type="primary"):
+    if st.button(f"**낚시하기!** (떡밥 1개 소모)", type="primary", key="do_fishing"):
         st.session_state.bait -= 1
         st.session_state.total_fish_caught += 1
         update_bait_price() # 물가 상승 체크
@@ -531,6 +545,7 @@ with inv_col:
     if st.button("📦 인벤토리 열기/닫기", key="toggle_inventory"):
         st.session_state.inventory_open = not st.session_state.inventory_open
         st.session_state.fishbook_open = False # 도감은 닫기
+        st.rerun()
 
     if st.session_state.inventory_open:
         counts = Counter(st.session_state.inventory)
@@ -538,11 +553,6 @@ with inv_col:
         if counts:
             
             # 인벤토리 테이블 표시
-            inventory_data = {
-                "아이템": list(counts.keys()),
-                "수량": [counts[item] for item in counts.keys()],
-                "판매가": [f"{price_map.get(item, 0):,}" for item in counts.keys()]
-            }
             # 데이터 정렬 (수량이 많은 순으로)
             sorted_items = sorted(counts.items(), key=lambda item: item[1], reverse=True)
             
@@ -556,10 +566,32 @@ with inv_col:
             st.info("인벤토리가 비어 있습니다.")
 
 # --- 도감 (시각적 개선 적용) ---
+def render_fishbook_list(title, fish_list_to_render):
+    """CSS Grid를 사용하여 정렬된 도감 목록을 렌더링하는 헬퍼 함수"""
+    st.markdown(f"**{title}** ({len(fish_list_to_render)}종)")
+    # 🚨 CSS Grid 컨테이너 시작
+    st.markdown('<div class="fishbook-grid">', unsafe_allow_html=True) 
+    
+    # 정렬 순서는 ABC 순으로 통일
+    for item in sorted(fish_list_to_render):
+        status = "✅" if item in st.session_state.fishbook else "❓"
+        css_class = "collected" if status == "✅" else "uncollected"
+        display_name = f"{item}"
+        if item in MONSTER_FISH:
+            display_name += "--" # 괴수 물고기에는 -- 추가
+        
+        # 🚨 CSS Grid 항목으로 렌더링
+        st.markdown(f'<div class="fishbook-item"><span class="{css_class}">{status} {display_name}</span></div>', unsafe_allow_html=True)
+    
+    # 🚨 CSS Grid 컨테이너 끝
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("---")
+
 with fishbook_col:
-    if st.button("📖 도감 열기/닫기", key="toggle_fishbook"):
+    if st.button("📖 도감 열기/닫기", key="toggle_fishbook_final"):
         st.session_state.fishbook_open = not st.session_state.fishbook_open
         st.session_state.inventory_open = False # 인벤토리는 닫기
+        st.rerun()
 
     if st.session_state.fishbook_open:
         # 도감 완성 체크
@@ -570,44 +602,17 @@ with fishbook_col:
         if st.session_state.fishbook_complete:
             st.success("🏆 도감 완성! 전설의 낚시꾼!")
         
-        # 1. 🐟 일반 물고기 (55종)
-        st.markdown("**🐟 일반 물고기** (55종)")
-        cols = st.columns(5)
-        for i, item in enumerate(sorted(NORMAL_FISH)):
-            status = "✅" if item in st.session_state.fishbook else "❓"
-            css_class = "collected" if status == "✅" else "uncollected"
-            cols[i % 5].markdown(f'<span class="{css_class}">{status} {item}</span>', unsafe_allow_html=True)
+        # 1. 🐟 일반 물고기 
+        render_fishbook_list("🐟 일반 물고기", NORMAL_FISH)
         
-        st.markdown("---")
-        
-        # 2. ☣️ 괴수 물고기 (5종) - '이름--' 형식 및 CSS 적용
-        st.markdown("**☣️ 괴수 물고기** (5종)")
-        cols = st.columns(5)
-        for i, item in enumerate(sorted(MONSTER_FISH)):
-            status = "✅" if item in st.session_state.fishbook else "❓"
-            css_class = "collected" if status == "✅" else "uncollected"
-            display_name = f"{item}--" 
-            cols[i % 5].markdown(f'<span class="{css_class}">{status} {display_name}</span>', unsafe_allow_html=True)
+        # 2. ☣️ 괴수 물고기 
+        render_fishbook_list("☣️ 괴수 물고기", MONSTER_FISH)
             
-        st.markdown("---")
-
-        # 3. 🧪 합성 물고기 (8종)
-        st.markdown("#### 🧪 합성 물고기 (8종)")
-        cols = st.columns(5)
-        for i, item in enumerate(sorted(FUSED_FISH)):
-            status = "✅" if item in st.session_state.fishbook else "❓"
-            css_class = "collected" if status == "✅" else "uncollected"
-            cols[i % 5].markdown(f'<span class="{css_class}">{status} {item}</span>', unsafe_allow_html=True)
+        # 3. 🧪 합성 물고기 
+        render_fishbook_list("🧪 합성 물고기", FUSED_FISH)
             
-        st.markdown("---")
-        
-        # 4. 🗺️ 특수 아이템 (2종)
-        st.markdown("#### 🗺️ 특수 아이템 (2종)")
-        cols = st.columns(5)
-        for i, item in enumerate(sorted(SPECIAL_ITEMS)):
-            status = "✅" if item in st.session_state.fishbook else "❓"
-            css_class = "collected" if status == "✅" else "uncollected"
-            cols[i % 5].markdown(f'<span class="{css_class}">{status} {item}</span>', unsafe_allow_html=True)
+        # 4. 🗺️ 특수 아이템 
+        render_fishbook_list("🗺️ 특수 아이템", SPECIAL_ITEMS)
             
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -772,12 +777,9 @@ def shop_interface():
                 format_func=lambda x: f"{x} ({price_map.get(x,'N/A'):,} 코인) x {counts.get(x, 0)}",
                 key="sell_select"
             )
-            # Multi-select는 항목만 반환하므로, 선택된 항목으로 재고 카운터를 새로 계산해야 함
-            # 사용자가 직접 수량을 입력할 수 있도록 변경하는 것이 더 정확함 (복잡성 증가로 일단 기존 로직 유지)
 
             if st.button("선택된 아이템 판매", key="sell_btn"):
                 counts = Counter(st.session_state.inventory)
-                selected_counts = Counter(selected)
                 total = 0
                 items_sold_count = 0
 
@@ -869,77 +871,112 @@ if craft_candidates:
         craft_qty = st.number_input("제작할 떡밥 개수", min_value=1, max_value=max_craftable_single, value=min(1, max_craftable_single) if max_craftable_single > 0 else 0, step=1, key="craft_qty")
     
     # 🚨 변경된 제작 조건 반영
-    if st.button(f"'{selected_fish_to_grind}' {craft_qty * BAIT_CRAFT_FISH_NEEDED}개 갈아서 떡밥 {craft_qty}개 제작", key="craft_btn", disabled=max_craftable_single==0 or craft_qty == 0):
-        total_fish_needed = craft_qty * BAIT_CRAFT_FISH_NEEDED
-        if counts.get(selected_fish_to_grind, 0) >= total_fish_needed:
-            for _ in range(total_fish_needed):
+    total_fish_needed_manual = craft_qty * BAIT_CRAFT_FISH_NEEDED
+
+    if st.button(f"'{selected_fish_to_grind}' {total_fish_needed_manual}개 갈아서 떡밥 {craft_qty}개 제작", key="craft_btn", disabled=max_craftable_single==0 or craft_qty == 0):
+        if craft_qty > 0:
+            for _ in range(total_fish_needed_manual):
                 st.session_state.inventory.remove(selected_fish_to_grind)
+            
             st.session_state.bait += craft_qty
-            st.success(f"**{selected_fish_to_grind}** {total_fish_needed}마리 분쇄 완료! 🧵 **떡밥 {craft_qty}개** 획득! (현재 떡밥: {st.session_state.bait}개)")
+            st.success(f"**{selected_fish_to_grind}** {total_fish_needed_manual}개 분쇄 완료! 🧵 **떡밥 {craft_qty}개** 획득!")
             st.rerun()
+        else:
+            st.warning("제작할 떡밥 개수를 선택하세요.")
+
 else:
-    # 🚨 변경된 제작 조건 반영
-    st.info(f"수동 제작 가능한 물고기가 없습니다. (인벤토리에 {BAIT_CRAFT_FISH_NEEDED}마리 이상 있는 물고기가 필요합니다.)")
+    st.info(f"현재 떡밥 수동 제작에 사용할 수 있는 물고기가 없습니다. (동일 물고기 {BAIT_CRAFT_FISH_NEEDED}마리 필요)")
 
 st.markdown("---")
 
-# 🌟 3. 물고기 합성 (Fusion)
-st.markdown("### ✨ 물고기 합성 (Mega-Fish)")
-st.caption("특정 물고기 10마리를 합성하여 5배 가격의 '대물고기' 1마리를 만듭니다. (합성된 물고기는 판매만 가능)")
+# 🌟 3. 물고기 합성 로직 (합성 물고기 생성)
+st.markdown("### 🧪 물고기 합성")
+st.caption("기본 물고기 **5마리**로 **1단계 합성 물고기 1마리**를 제작합니다.")
 
-fusion_candidates = [base for base, fused in fusion_map.items() if counts.get(base, 0) >= 10]
+fusion_col1, fusion_col2 = st.columns([2, 1])
 
-if fusion_candidates:
-    fusion_col1, fusion_col2 = st.columns([2, 1])
+# 합성 가능한 물고기만 선택지 제공
+base_fish_candidates = [f for f in fusion_map.keys() if counts.get(f, 0) >= 5]
+# 합성 물고기 목록 생성 (base_fish: fused_fish)
+fusable_items_display = {
+    f: f"{f} ({counts.get(f, 0)}개) -> {fusion_map[f]}" 
+    for f in base_fish_candidates
+}
 
-    with fusion_col1:
-        selected_fish_to_fuse = st.selectbox("합성할 재료 물고기 선택 (10마리 소모)", fusion_candidates, key="fusion_select")
-        max_fusion = counts.get(selected_fish_to_fuse, 0) // 10
-        st.caption(f"최대 합성 가능: {max_fusion}마리")
+with fusion_col1:
+    if base_fish_candidates:
+        selected_base_fish = st.selectbox(
+            "합성할 물고기 선택", 
+            options=base_fish_candidates, 
+            format_func=lambda x: fusable_items_display[x],
+            key="fusion_select"
+        )
+        required_qty = 5
+        current_qty = counts.get(selected_base_fish, 0)
         
-    with fusion_col2:
-        fusion_qty = st.number_input("합성할 횟수", min_value=0, max_value=max_fusion, value=min(1, max_fusion) if max_fusion > 0 else 0, step=1, key="fusion_qty")
-
-    if st.button(f"'{selected_fish_to_fuse}' {fusion_qty * 10}개로 대물고기 {fusion_qty}마리 합성", key="fusion_btn", disabled=max_fusion == 0 or fusion_qty == 0, type="primary"):
-        total_fish_needed = fusion_qty * 10
-        fused_fish = fusion_map[selected_fish_to_fuse]
-
-        if counts.get(selected_fish_to_fuse, 0) >= total_fish_needed:
-            for _ in range(total_fish_needed):
-                st.session_state.inventory.remove(selected_fish_to_fuse)
-            
-            for _ in range(fusion_qty):
-                catch_fish(fused_fish) # 인벤토리에 추가 및 도감 업데이트
-            
-            st.success(f"🔥 **{selected_fish_to_fuse}** {total_fish_needed}마리가 **{fused_fish}** {fusion_qty}마리로 합성되었습니다! (판매가: {price_map.get(fused_fish, 0):,} 코인)")
-            st.rerun()
-else:
-    st.info("합성할 수 있는 물고기가 없습니다. (재료 물고기 10마리 필요)")
-
-st.markdown("---")
-
-
-# 🌟 4. 지도 조각 합성
-st.markdown("### 🗺️ 지도 조각 합성")
-st.caption(f"오래된 지도 조각 **{MAP_PIECES_NEEDED}개**를 합성하여 **완성된 오래된 지도** 1개를 만듭니다. (잃어버린 섬 해금)")
-
-map_pieces = counts.get("오래된 지도 조각", 0)
-can_fuse_map = map_pieces >= MAP_PIECES_NEEDED
-
-st.write(f"**현재 지도 조각:** {map_pieces}개 (필요: {MAP_PIECES_NEEDED}개)")
-
-if st.button("🧭 완성된 지도 제작", key="fuse_map_btn", disabled=not can_fuse_map):
-    if can_fuse_map:
-        for _ in range(MAP_PIECES_NEEDED):
-            st.session_state.inventory.remove("오래된 지도 조각")
-            
-        # 완성된 지도를 인벤토리에 추가 및 해금 체크
-        catch_fish("완성된 오래된 지도")
-        check_for_map_completion() # 지도 소모 및 잃어버린 섬 해금
+        max_fusable = current_qty // required_qty
         
-        st.success(f"🎊 **완성된 오래된 지도**를 제작했습니다! 잃어버린 섬이 해금되었습니다.")
-        st.rerun()
+        st.caption(f"재료 ({selected_base_fish}): {current_qty}개 / {required_qty}개 필요")
+        st.caption(f"최대 합성 가능: {max_fusable}마리")
+
     else:
-        st.error(f"⚠️ 지도 조각 {MAP_PIECES_NEEDED}개가 부족합니다.")
+        st.info("현재 합성할 수 있는 기본 물고기 (5마리 이상)가 없습니다.")
+        selected_base_fish = None
+        max_fusable = 0
+        
+with fusion_col2:
+    fusion_qty = st.number_input("합성할 개수", min_value=1, max_value=max_fusable, value=min(1, max_fusable) if max_fusable > 0 else 0, step=1, key="fusion_qty", disabled=max_fusable == 0)
+
+if selected_base_fish and fusion_qty > 0 and st.button(f"✨ 합성 ({selected_base_fish} {fusion_qty * 5}개 소모)", key="fusion_btn", disabled=fusion_qty == 0):
+    
+    total_consumed = fusion_qty * 5
+    fused_fish = fusion_map[selected_base_fish]
+    
+    # 재료 소모
+    for _ in range(total_consumed):
+        st.session_state.inventory.remove(selected_base_fish)
+        
+    # 합성 물고기 획득 및 도감 등록
+    for _ in range(fusion_qty):
+        catch_fish(fused_fish) # 인벤토리 추가 + 도감 등록
+        
+    st.success(f"**{selected_base_fish}** {total_consumed}개 소모하여 🧪 **{fused_fish}** {fusion_qty}마리 획득!")
+    st.rerun()
+
+st.markdown("---")
+
+# 🌟 4. 지도 합성 로직 (잃어버린 섬 해금)
+st.markdown("### 🗺️ 지도 합성")
+st.caption(f"**오래된 지도 조각 {MAP_PIECES_NEEDED}개**로 **완성된 지도** 1개를 제작합니다.")
+
+map_piece = "오래된 지도 조각"
+map_piece_count = counts.get(map_piece, 0)
+max_map_craftable = map_piece_count // MAP_PIECES_NEEDED
+
+st.write(f"현재 {map_piece}: **{map_piece_count}개** / {MAP_PIECES_NEEDED}개 필요")
+
+if st.button("🗺️ 지도 조각 합성", key="map_fusion_btn", disabled=map_piece_count < MAP_PIECES_NEEDED):
+    
+    # 조각 소모
+    for _ in range(MAP_PIECES_NEEDED):
+        st.session_state.inventory.remove(map_piece)
+        
+    # 완성된 지도 획득
+    full_map = "완성된 오래된 지도"
+    catch_fish(full_map) # 인벤토리 추가 + 도감 등록
+
+    st.success(f"지도 조각 {MAP_PIECES_NEEDED}개 소모. **{full_map}** 획득!")
+    
+    # 지도 완성 시 잃어버린 섬 잠금 해제 체크 (함수 호출)
+    check_for_map_completion()
+    
+    st.rerun()
+elif not st.session_state.lost_island_unlocked:
+    st.caption("잃어버린 섬 해금을 위해 지도를 합성하세요.")
 
 st.markdown('</div>', unsafe_allow_html=True)
+# ================= 🔧 떡밥 제작 & 합성 섹션 끝 =================
+
+# ================= 8. Streamlit Main Loop 끝 =================
+# Streamlit 앱이 시작될 때마다 실행되어야 하는 최종 체크
+check_for_map_completion()
