@@ -313,7 +313,7 @@ def get_fishing_weights():
 # ================= 4. UI 시작 =================
 st.title("🎣 바다의 왕이 되기 위해")
 st.subheader("심해 속으로, 섬을 다 찾기 위해서!")
-st.write(": 여러분의 자유로운 섬 탐방! 히튼 퀘스트를 달성하여 섬을 찾아보자!") 
+st.write(": 기본 지급되는 4개의 떡밥으로, 낚시를 시작해보자!!") 
 
 # --- 상단 통계 컨테이너 ---
 st.markdown('<div class="game-section">', unsafe_allow_html=True)
