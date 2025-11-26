@@ -130,11 +130,12 @@ price_map["오래된 지도 조각"] = 5000
 price_map["완성된 오래된 지도"] = 50000
 price_map["떡밥"] = 50 # 떡밥의 상점 판매가 (실제 구매가는 shop_items에서 결정)
 
-# 🎣 물가 상승 상수 정의 (요청 1: 떡밥 기준치 50원으로 변경)
-MAX_BAIT_INCREASE = 1500 # 최대 가격 상승 한도
+# 🎣 물가 상승 상수 정의
+# 🚨 수정: MAX_BAIT_INCREASE를 900으로 변경
+MAX_BAIT_INCREASE = 900 # 최대 가격 상승 한도 1500 -> 900
 BAIT_INCREASE_STEP = 10 # 1회 상승량
 CATCH_THRESHOLD_FOR_STEP = 40 # 40마리마다 상승
-BAIT_BASE_PRICE = 50 # 🚨 변경됨: 200 -> 50
+BAIT_BASE_PRICE = 50 # 기본 가격
 
 shop_items = {
     "떡밥": {
@@ -170,7 +171,7 @@ RARE_LOCATION_COSTS = {
 MAP_PIECES_NEEDED = 5 # 지도 조각 합성 개수
 
 # 🚨 요청 2: 떡밥 제작 조건 변경 상수
-BAIT_CRAFT_FISH_NEEDED = 2 # 🚨 변경됨: 10 -> 2
+BAIT_CRAFT_FISH_NEEDED = 2 # 떡밥 제작에 필요한 물고기 개수
 
 
 # ================= 1. 세션 초기화 =================
@@ -243,12 +244,13 @@ def check_for_map_completion():
 
 
 def update_bait_price():
-    """총 낚시 마릿수에 따라 떡밥 가격을 지속적으로 인상하고, 최대치(1500)로 제한합니다."""
+    """총 낚시 마릿수에 따라 떡밥 가격을 지속적으로 인상하고, 최대치(900)로 제한합니다."""
     # 기존 로직 유지
     current_count = st.session_state.total_fish_caught
     
     # 물가 상승액 계산
     potential_increase = (current_count // CATCH_THRESHOLD_FOR_STEP) * BAIT_INCREASE_STEP
+    # 🚨 수정: MAX_BAIT_INCREASE 사용
     new_increase = min(potential_increase, MAX_BAIT_INCREASE)
     current_increase = shop_items["떡밥"]["price_increase"] 
 
@@ -415,7 +417,6 @@ def fishing_batch_run():
     # 낚시 결과 저장용 변수
     caught_results = Counter()
     total_coin_event_bonus = 0
-    total_lost_fish = Counter()
     
     # 위치별 가중치 및 이벤트 확률 계산
     weights = get_fishing_weights()
@@ -434,11 +435,8 @@ def fishing_batch_run():
         event_summary = random_event(event_rate, location)
         
         # 이벤트 결과 누적
+        # 코인 손실 이벤트는 배치 낚시에서 무시 (랜덤 이벤트 함수에서 이미 처리되지만, 재확인)
         total_coin_event_bonus += event_summary['coin'] + event_summary['special_bonus']
-        if event_summary['lost_fish']:
-            # 전체 낚시 시 손실 이벤트는 무시하거나, 잡은 물고기에서 차감하는 복잡한 로직 대신 토스트만 표시
-            # 여기서는 편의상 이벤트 손실을 무시하고 메시지만 표시하지 않음.
-            pass
         
     # 물가 상승 체크
     update_bait_price() 
@@ -473,7 +471,7 @@ def fishing_batch_run():
 # ================= 4. UI 시작 =================
 st.title("🎣 바다의 왕이 되기 위해")
 st.subheader("심해 속으로, 섬을 다 찾기 위해서!")
-st.write("기본 지급되는 떡밥으로, 낚시를 시작해보자!!") 
+st.write("기본 지급되는 떡밥으로, 낚시를 시작해보자!!")
 
 # --- 상단 통계 컨테이너 ---
 st.markdown('<div class="game-section">', unsafe_allow_html=True)
@@ -503,19 +501,25 @@ if st.session_state.legendary_unlocked:
 if st.session_state.lost_island_unlocked:
     location_options.append("잃어버린 섬")
     
-# 희귀 낚시터는 별도 입장 버튼이 있으므로 선택지에 넣지 않습니다.
+current_location = st.session_state.location
+selector_index = location_options.index(current_location) if current_location in location_options else 0
 
-# 낚시터 선택
-st.session_state.location_selector = st.selectbox(
-    "낚시할 장소 선택", 
-    options=location_options, 
-    index=location_options.index(st.session_state.location) if st.session_state.location in location_options else 0,
-    key="location_select"
-)
-st.session_state.location = st.session_state.location_selector
+# 🚨 수정: 희귀 낚시터에 있지 않을 때만 location_selector 표시 및 location 업데이트
+if current_location != "희귀 낚시터":
+    st.session_state.location_selector = st.selectbox(
+        "낚시할 장소 선택", 
+        options=location_options, 
+        index=selector_index,
+        key="location_select"
+    )
+    st.session_state.location = st.session_state.location_selector
+else:
+    # 🚨 희귀 낚시터에 있을 때는 셀렉트 박스 대신 현재 위치 정보만 표시
+    st.info(f"현재 **{current_location}**에 있습니다. 희귀 낚시터에서 낚시를 계속하세요.")
+
 
 # 희귀 낚시터 입장 로직
-if st.session_state.location != "희귀 낚시터":
+if current_location != "희귀 낚시터":
     
     st.markdown("---")
     
@@ -547,13 +551,13 @@ if st.session_state.location != "희귀 낚시터":
             for _ in range(qty):
                 st.session_state.inventory.remove(fish)
             
-        st.session_state.location = "희귀 낚시터"
+        st.session_state.location = "희귀 낚시터" # 위치 변경
         st.success("🎉 희귀 낚시터에 입장했습니다! 낚시를 시작하세요.")
         st.rerun()
 
 # 희귀 낚시터에서 탈출 로직
-if st.session_state.location == "희귀 낚시터":
-    st.info("현재 **희귀 낚시터**에 있습니다. 이 곳에서는 희귀 물고기와 지도 조각을 획득할 수 있습니다.")
+if current_location == "희귀 낚시터":
+    # 🚨 info 메시지는 위에서 표시되므로 중복 제거
     if st.button("⬅️ 강가로 돌아가기", key="exit_rare_fishing_spot"):
         st.session_state.location = "강가"
         st.success("강가로 돌아왔습니다.")
@@ -603,7 +607,7 @@ with fish_col1:
     else:
         st.error("❗ 떡밥이 부족합니다.")
 
-# 2. 전체 낚시 (요청 기능)
+# 2. 전체 낚시
 with fish_col2:
     if st.session_state.bait > 0:
         if st.button(f"**🎣 전체 낚시!** (떡밥 {st.session_state.bait}개 소모)", type="secondary", key="do_fishing_batch"):
@@ -758,6 +762,7 @@ def shop_interface():
         bait_price = bait_item["price"]
         increase = bait_item["price_increase"]
 
+        # 🚨 수정: 최대 가격 정보 반영
         st.write(f"**🧵 떡밥:** **{bait_price:,} 코인/개** (기본 {BAIT_BASE_PRICE} + 물가 상승 {increase} 코인)")
         st.caption(f"최대 가격은 {BAIT_BASE_PRICE + MAX_BAIT_INCREASE:,} 코인입니다.")
 
