@@ -1,7 +1,7 @@
 import streamlit as st
 import random
 from collections import Counter
-import math # math.ceil을 사용하기 위해 추가
+import math 
 
 # ================= 0. 페이지 설정 및 CSS 스타일링 (밝은 테마 적용) =================
 st.set_page_config(
@@ -404,7 +404,7 @@ def get_fishing_weights():
 # ================= 4. UI 시작 =================
 st.title("🎣 바다의 왕이 되기 위해")
 st.subheader("심해 속으로, 섬을 다 찾기 위해서!")
-st.write("기본 지급되는 떡밥으로, 낚시를 시작해보자!!") # 떡밥 4개 지급 메시지 제거 (코인 지급으로 변경)
+st.write("기본 지급되는 떡밥으로, 낚시를 시작해보자!!")
 
 # --- 상단 통계 컨테이너 ---
 st.markdown('<div class="game-section">', unsafe_allow_html=True)
@@ -925,7 +925,18 @@ with fusion_col1:
         max_fusable = 0
         
 with fusion_col2:
-    fusion_qty = st.number_input("합성할 개수", min_value=1, max_value=max_fusable, value=min(1, max_fusable) if max_fusable > 0 else 0, step=1, key="fusion_qty", disabled=max_fusable == 0)
+    # 🚨 오류 수정 부분: max_fusable이 0일 때 min_value를 0으로 설정하여 오류 회피
+    dynamic_min_value = 1 if max_fusable > 0 else 0 
+    
+    fusion_qty = st.number_input(
+        "합성할 개수", 
+        min_value=dynamic_min_value, # <--- 수정됨: max_fusable이 0이면 min_value도 0
+        max_value=max_fusable, 
+        value=min(1, max_fusable) if max_fusable > 0 else 0, 
+        step=1, 
+        key="fusion_qty", 
+        disabled=max_fusable == 0
+    )
 
 if selected_base_fish and fusion_qty > 0 and st.button(f"✨ 합성 ({selected_base_fish} {fusion_qty * 5}개 소모)", key="fusion_btn", disabled=fusion_qty == 0):
     
