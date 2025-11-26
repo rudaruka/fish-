@@ -400,11 +400,80 @@ def get_fishing_weights():
     # 최종 가중치를 정수로 변환하여 반환
     return [max(1, math.ceil(w)) for w in weights] # 가중치가 최소 1이 되도록 보장
 
+def fishing_batch_run():
+    """
+    현재 가진 떡밥 전체를 소모하여 낚시를 시도하고 결과를 요약합니다.
+    """
+    bait_used = st.session_state.bait
+    if bait_used == 0:
+        st.error("❗ 떡밥이 부족하여 전체 낚시를 실행할 수 없습니다.")
+        return
+
+    st.session_state.bait = 0 # 떡밥 전체 소모
+    st.session_state.total_fish_caught += bait_used
+    
+    # 낚시 결과 저장용 변수
+    caught_results = Counter()
+    total_coin_event_bonus = 0
+    total_lost_fish = Counter()
+    
+    # 위치별 가중치 및 이벤트 확률 계산
+    weights = get_fishing_weights()
+    location = st.session_state.location
+    event_rate = 0.15 if location in ["희귀 낚시터", "전설의 해역", "잃어버린 섬"] else 0.1
+    
+    # 배치 낚시 실행
+    for _ in range(bait_used):
+        # 낚시 결과
+        caught_fish = random.choices(fish_list, weights=weights, k=1)[0]
+        caught_results[caught_fish] += 1
+        st.session_state.inventory.append(caught_fish)
+        st.session_state.fishbook.add(caught_fish)
+
+        # 랜덤 이벤트 (배치 낚시에서는 손실 이벤트를 제외하고 보너스만 카운트)
+        event_summary = random_event(event_rate, location)
+        
+        # 이벤트 결과 누적
+        total_coin_event_bonus += event_summary['coin'] + event_summary['special_bonus']
+        if event_summary['lost_fish']:
+            # 전체 낚시 시 손실 이벤트는 무시하거나, 잡은 물고기에서 차감하는 복잡한 로직 대신 토스트만 표시
+            # 여기서는 편의상 이벤트 손실을 무시하고 메시지만 표시하지 않음.
+            pass
+        
+    # 물가 상승 체크
+    update_bait_price() 
+    
+    # 최종 결과 요약
+    st.markdown(f"### 🎉 **[전체 낚시 {bait_used}회] 결과**")
+    st.info(f"**📍 낚시터:** {location}")
+    st.success(f"**총 {bait_used}마리** 낚시 성공! 낚시한 물고기 {bait_used}마리 인벤토리에 추가.")
+    
+    # 획득한 물고기 목록 출력
+    if caught_results:
+        st.markdown("**획득한 물고기 목록:**")
+        
+        # 표 형식으로 정렬하여 표시
+        caught_data = sorted(caught_results.items(), key=lambda item: item[1], reverse=True)
+        st.table({
+            "물고기": [item[0] for item in caught_data],
+            "마리 수": [item[1] for item in caught_data]
+        })
+        
+    # 이벤트 보너스 코인 지급 및 출력
+    if total_coin_event_bonus > 0:
+        st.session_state.coin = int(st.session_state.coin + total_coin_event_bonus)
+        st.warning(f"💰 이벤트 보너스 코인 획득: **{total_coin_event_bonus:,} 코인**")
+
+    # 도감 완성 체크
+    check_and_grant_fishbook_reward()
+    
+    st.rerun()
+
 
 # ================= 4. UI 시작 =================
 st.title("🎣 바다의 왕이 되기 위해")
 st.subheader("심해 속으로, 섬을 다 찾기 위해서!")
-st.write("기본 지급되는 떡밥으로, 낚시를 시작해보자!!")
+st.write("기본 지급되는 떡밥으로, 낚시를 시작해보자!!") 
 
 # --- 상단 통계 컨테이너 ---
 st.markdown('<div class="game-section">', unsafe_allow_html=True)
@@ -414,7 +483,6 @@ stats_col1, stats_col2, stats_col3, stats_col4 = st.columns([1.5, 1.5, 1.5, 4])
 with stats_col1:
     st.markdown(f"**💰 코인:** <span class='stat-value' style='color: #ffc107;'>{int(st.session_state.coin):,}</span>", unsafe_allow_html=True)
 with stats_col2:
-    # 🚨 수정: 마크다운 내부에서 st.rerun() 호출 오류 수정
     st.markdown(f"**🧵 떡밥:** <span class='stat-value' style='color: #fd7e14;'>{st.session_state.bait}개</span>", unsafe_allow_html=True)
 with stats_col3:
     st.markdown(f"**🎣 낚싯대:** <span class='stat-value' style='color: #adb5bd;'>Lv.{st.session_state.rod_level}</span>", unsafe_allow_html=True)
@@ -493,43 +561,55 @@ if st.session_state.location == "희귀 낚시터":
 
 st.markdown("---")
 
-# 낚시 실행 로직
-if st.session_state.bait > 0:
-    if st.button(f"**낚시하기!** (떡밥 1개 소모)", type="primary", key="do_fishing"):
-        st.session_state.bait -= 1
-        st.session_state.total_fish_caught += 1
-        update_bait_price() # 물가 상승 체크
+# 낚시 실행 버튼 배치
+fish_col1, fish_col2 = st.columns(2)
 
-        # 가중치 획득
-        weights = get_fishing_weights()
-        
-        # 낚시 결과
-        caught_fish = random.choices(fish_list, weights=weights, k=1)[0]
-        catch_fish(caught_fish)
-        
-        # 랜덤 이벤트
-        event_rate = 0.15 if st.session_state.location in ["희귀 낚시터", "전설의 해역", "잃어버린 섬"] else 0.1
-        event_summary = random_event(event_rate, st.session_state.location)
-        
-        # 결과 메시지
-        st.success(f"🎊 **{st.session_state.location}**에서 **{caught_fish}**를 낚았습니다! (💰{price_map.get(caught_fish, 'N/A'):,} 코인)")
-        
-        if event_summary['event_message']:
-            st.warning(f"🚨 이벤트 발생: **{event_summary['event_message']}**")
+# 1. 단일 낚시
+with fish_col1:
+    if st.session_state.bait > 0:
+        if st.button(f"**🎣 낚시하기!** (떡밥 1개 소모)", type="primary", key="do_fishing_single"):
+            st.session_state.bait -= 1
+            st.session_state.total_fish_caught += 1
+            update_bait_price() # 물가 상승 체크
+
+            # 가중치 획득
+            weights = get_fishing_weights()
             
-        # 보상/손실 요약
-        if event_summary['coin'] > 0:
-            st.caption(f"+💰 {event_summary['coin']:,} 코인")
-        if event_summary['bonus_fish']:
-            st.caption(f"보너스 획득: {event_summary['bonus_fish'][0]}")
-        if event_summary['lost_fish']:
-            st.caption(f"물고기 손실: -{event_summary['lost_fish'][0]}")
-        if event_summary['special_bonus'] > 0:
-            st.caption(f"+💎 {event_summary['special_bonus']:,} 코인 (특수 보너스)")
+            # 낚시 결과
+            caught_fish = random.choices(fish_list, weights=weights, k=1)[0]
+            catch_fish(caught_fish)
             
-        st.rerun()
-else:
-    st.error("❗ 떡밥이 부족합니다. 상점에서 구매하거나 인벤토리에서 제작하세요.")
+            # 랜덤 이벤트
+            event_rate = 0.15 if st.session_state.location in ["희귀 낚시터", "전설의 해역", "잃어버린 섬"] else 0.1
+            event_summary = random_event(event_rate, st.session_state.location)
+            
+            # 결과 메시지
+            st.success(f"🎊 **{st.session_state.location}**에서 **{caught_fish}**를 낚았습니다! (💰{price_map.get(caught_fish, 'N/A'):,} 코인)")
+            
+            if event_summary['event_message']:
+                st.warning(f"🚨 이벤트 발생: **{event_summary['event_message']}**")
+                
+            # 보상/손실 요약
+            if event_summary['coin'] > 0:
+                st.caption(f"+💰 {event_summary['coin']:,} 코인")
+            if event_summary['bonus_fish']:
+                st.caption(f"보너스 획득: {event_summary['bonus_fish'][0]}")
+            if event_summary['lost_fish']:
+                st.caption(f"물고기 손실: -{event_summary['lost_fish'][0]}")
+            if event_summary['special_bonus'] > 0:
+                st.caption(f"+💎 {event_summary['special_bonus']:,} 코인 (특수 보너스)")
+                
+            st.rerun()
+    else:
+        st.error("❗ 떡밥이 부족합니다.")
+
+# 2. 전체 낚시 (요청 기능)
+with fish_col2:
+    if st.session_state.bait > 0:
+        if st.button(f"**🎣 전체 낚시!** (떡밥 {st.session_state.bait}개 소모)", type="secondary", key="do_fishing_batch"):
+            fishing_batch_run() # 배치 낚시 함수 실행
+    else:
+        st.error("❗ 전체 낚시 불가.")
     
 st.markdown('</div>', unsafe_allow_html=True)
 
