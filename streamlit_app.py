@@ -78,32 +78,33 @@ hr {
 
 # ================= 2. 물고기 & 가격 정의 =================
 
-# 🚩 물고기 확률 재정의 (사용자 요청에 따라 전체 확률 배분 조정)
-# W_N=8, W_L=6, W_M=8, W_C=3 비율로 조정 (총 가중치 378)
+# 🚩 물고기 확률 재정의 (일반 물고기 내부 확률 차등 적용 및 전체 비율 유지)
 fish_prob = {
-    # 🐟 일반 물고기 (W=8): 총 37마리 (약 78.31% 차지)
-    "멸치": 8, "복어": 8, "누치": 8, "정어리": 8, 
-    "빙어": 8, "북어": 8, "꽁치": 8, "은어": 8, "노래미": 8, "쥐치": 8, 
-    "피라냐": 8, "메기": 8, "송어": 8, "붕어": 8, "잉어": 8, "향어": 8,
-    "가물치": 8, "쏘가리": 8, "붕장어": 8, "갯장어": 8,
+    # 🐟 일반 물고기 - 아주 흔함 (W=15): 5마리
+    "멸치": 15, "복어": 15, "누치": 15, "정어리": 15, "피라냐": 15, 
 
-    # 🦈 바다/희귀 물고기 (W=8)
-    "고등어": 8, "전갱이": 8, "우럭": 8, "삼치": 8,
-    "참치": 8, "연어": 8, "광어": 8, "도미": 8, "농어": 8, "아귀": 8, 
-    "볼락": 8, "갈치": 8, "병어": 8,
+    # 🐟 일반 물고기 - 흔함 (W=10): 15마리
+    "빙어": 10, "북어": 10, "꽁치": 10, "은어": 10, "노래미": 10, "쥐치": 10, 
+    "메기": 10, "송어": 10, "붕어": 10, "잉어": 10, "향어": 10,
+    "가물치": 10, "쏘가리": 10, "붕장어": 10, "갯장어": 10,
 
-    # 🦀 특수/초희귀 물고기 (W=8)
-    "청새치": 8, "황새치": 8, "랍스터": 8, "해마": 8,
-    "방어": 8, "날치": 8, "열기": 8,
+    # 🦈 일반 물고기 - 희귀 바다 (W=6): 13마리
+    "고등어": 6, "전갱이": 6, "우럭": 6, "삼치": 6,
+    "참치": 6, "연어": 6, "광어": 6, "도미": 6, "농어": 6, "아귀": 6, 
+    "볼락": 6, "갈치": 6, "병어": 6,
+
+    # 🦀 일반 물고기 - 매우 희귀/특수 (W=2): 7마리
+    "청새치": 2, "황새치": 2, "랍스터": 2, "해마": 2,
+    "방어": 2, "날치": 2, "열기": 2,
     
-    # 🔱 심해/전설 & 희귀 중 최고가 (W=6): 특수 아이템 7% 목표 그룹 (5마리, 약 7.94% 차지)
+    # 🔱 심해/전설 & 희귀 중 최고가 (W=6): 특수 아이템 7% 목표 그룹 (변화 없음)
     "메가참치": 6, "번개상어": 6, "심연참돔": 6, 
     "킹크랩": 6, "개복치": 6, 
 
-    # ☣️ 괴수 물고기 (W=8): 10% 목표 그룹 (5마리, 약 10.58% 차지)
+    # ☣️ 괴수 물고기 (W=8): 10% 목표 그룹 (변화 없음)
     "암흑고래수리" : 8, "화염비늘룡어" : 8, "태풍포식상어" : 8, "얼음유령해마" : 8, "심해철갑괴치" : 8,
 
-    # 😂 코믹 물고기 (W=3): 3% 목표 그룹 (4마리, 약 3.17% 차지)
+    # 😂 코믹 물고기 (W=3): 3% 목표 그룹 (변화 없음)
     "현이 물고기" : 3, "스노 물고기" : 3, "위키 물고기" : 3, "루루 물고기" : 3
 }
 
@@ -115,8 +116,10 @@ PRICE_DEFLATION_FACTOR = 0.6
 
 # 가격 계산 로직: 희귀도에 따라 가격 차별화 후 인하 계수 적용
 # 가격은 이제 확률(가중치)의 역수에 비례하도록 조정
+# 가중치가 낮을수록 (희귀할수록) 가격이 높아지도록 계산
 price_map = {
-    fish: int(((100 - prob) * 100) + 1000) * PRICE_DEFLATION_FACTOR 
+    # 가중치 15(흔함)부터 2(매우 희귀)까지의 분포를 활용하여 가격 책정
+    fish: int(((20 - prob) * 200) + 1000) * PRICE_DEFLATION_FACTOR 
     for fish, prob in fish_prob.items()
 }
 # 가격을 코인 단위로 사용하기 위해 다시 정수로 변환 (소수점 버림)
@@ -296,7 +299,8 @@ def random_event(event_rate, location):
             summary['event_message'] = "💰 보물 상자 발견!"
         
         elif event == 2: # 물고기 보너스
-            rare_fish_list = [f for f, prob in fish_prob.items() if prob < 10]
+            # 일반 물고기 중에서 가중치 낮은 (희귀한) 물고기 리스트
+            rare_fish_list = [f for f, prob in fish_prob.items() if prob <= 6] 
             f2 = random.choice(rare_fish_list) if rare_fish_list else random.choice(fish_list)
             catch_fish(f2)
             summary['bonus_fish'].append(f2)
@@ -366,32 +370,32 @@ def get_fishing_weights():
 
     elif st.session_state.location == "바다":
         for i, f in enumerate(fish_list):
-            # 바다에 맞지 않는 민물고기는 확률을 대폭 낮춤
-            if f in ["멸치", "복어", "누치", "피라냐", "메기", "붕어", "잉어", "향어", "가물치", "쏘가리", "붕장어", "갯장어"]:
+            # 바다에 맞지 않는 민물고기는 확률을 대폭 낮춤 (W=10 이상 물고기)
+            if fish_prob.get(f, 0) >= 10: 
                 weights[i] *= 0.05
-            # 바다 희귀템은 확률 2배 증가
-            elif fish_prob.get(f, 1) <= 8 and f not in MONSTER_FISH and f not in COMIC_FISH and f not in ["메가참치", "번개상어", "심연참돔"]:
+            # 바다 희귀템은 확률 2배 증가 (W=6 이하 물고기)
+            elif fish_prob.get(f, 0) <= 6 and f not in MONSTER_FISH and f not in COMIC_FISH and f not in ["메가참치", "번개상어", "심연참돔"]:
                 weights[i] *= 2.0
             
     elif st.session_state.location == "희귀 낚시터":
         for i, f in enumerate(fish_list):
-            # 희귀 물고기 (가중치 8 이하)는 확률 5배 증가
-            if fish_prob.get(f, 1) <= 8:
+            # 희귀 물고기 (W=6 이하)는 확률 5배 증가
+            if fish_prob.get(f, 0) <= 6:
                 weights[i] *= 5.0
             # 합성 가능 물고기는 확률 2.5배 증가
             if f in fusion_map.keys(): 
                 weights[i] *= 2.5
-            # 흔한 물고기는 확률 대폭 감소
-            elif fish_prob.get(f, 1) > 8:
+            # 흔한 물고기는 확률 대폭 감소 (W=10 이상 물고기)
+            elif fish_prob.get(f, 0) >= 10:
                 weights[i] *= 0.05
             
     elif st.session_state.location == "전설의 해역":
         for i, f in enumerate(fish_list):
-            # 전설의 해역에서만 나오는 괴수/코믹은 확률 100배 증가
+            # 전설의 해역에서만 나오는 괴수/코믹은 확률 100배 증가 (W=8, W=3 그룹)
             if f in MONSTER_FISH or f in COMIC_FISH:
                 weights[i] *= 100.0 
-            # 일반/희귀 물고기는 확률 대폭 감소
-            elif fish_prob.get(f, 1) > 8 and f not in ["메가참치", "번개상어", "심연참돔"]:
+            # 일반/희귀 물고기는 확률 대폭 감소 (W=6 이상 물고기)
+            elif fish_prob.get(f, 0) >= 6 and f not in ["메가참치", "번개상어", "심연참돔"]:
                 weights[i] *= 0.01
 
     elif st.session_state.location == "잃어버린 섬":
@@ -405,7 +409,7 @@ def get_fishing_weights():
             
     # 2. 낚싯대 보너스 조정 (희귀 물고기만)
     for i, f in enumerate(fish_list):
-        if fish_prob.get(f, 1) <= 8: 
+        if fish_prob.get(f, 1) <= 6: # W=6 이하의 희귀 물고기에만 보너스 적용
             weights[i] *= rod_bonus_multiplier
             
     return [max(1, math.ceil(w)) for w in weights] 
