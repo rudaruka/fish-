@@ -148,7 +148,7 @@ ROD_UPGRADE_COSTS = {
 SPECIAL_ITEMS = ["오래된 지도 조각", "완성된 오래된 지도"]
 FUSED_FISH = list(fusion_map.values())
 MONSTER_FISH = ["암흑고래수리", "화염비늘룡어", "태풍포식상어", "얼음유령해마", "심해철갑괴치"]
-COMIC_FISH = ["현 이 물고기", "스노 물고기", "위키 물고기", "루루 물고기"]
+COMIC_FISH = ["현이 물고기", "스노 물고기", "위키 물고기", "루루 물고기"]
 
 # 일반 물고기 정의 (괴수, 코믹, 특수, 합성 물고기를 제외한 나머지)
 EXCLUDED_TYPES = set(MONSTER_FISH) | set(COMIC_FISH) | set(SPECIAL_ITEMS) | set(FUSED_FISH)
