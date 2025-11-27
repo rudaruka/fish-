@@ -133,10 +133,10 @@ price_map["오래된 지도 조각"] = 5000
 price_map["완성된 오래된 지도"] = 50000
 
 # 🎣 물가 상승 상수 정의
-MAX_BAIT_INCREASE = 1730 # ⬅️ 최대 떡밥 가격 1800 코인 (70+1730)
+MAX_BAIT_INCREASE = 1000
 BAIT_INCREASE_STEP = 10 
 CATCH_THRESHOLD_FOR_STEP = 40 
-BAIT_BASE_PRICE = 70 
+BAIT_BASE_PRICE = 70 # ⬅️ 떡밥 기본 가격 70 코인 적용
 BAIT_CRAFT_FISH_NEEDED = 2 # 떡밥 제작에 필요한 물고기 개수
 
 shop_items = {
@@ -717,9 +717,8 @@ def shop_interface():
         bait_price = bait_item["price"]
         increase = bait_item["price_increase"]
 
-        max_price = BAIT_BASE_PRICE + MAX_BAIT_INCREASE
         st.write(f"**🧵 떡밥:** **{bait_price:,} 코인/개** (기본 {BAIT_BASE_PRICE} + 물가 상승 {increase} 코인)")
-        st.caption(f"최대 가격은 **{max_price:,}** 코인입니다.") # ⬅️ 최대 가격 표시 업데이트
+        st.caption(f"최대 가격은 {BAIT_BASE_PRICE + MAX_BAIT_INCREASE:,} 코인입니다.")
 
         purchase_qty = st.number_input("구매할 떡밥 개수", min_value=1, value=1, step=1, key="bait_qty")
         total_cost = purchase_qty * bait_price
