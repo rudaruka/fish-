@@ -687,23 +687,32 @@ def shop_interface():
             st.write(f"**강화 비용:** **{cost:,} 코인**")
             
             can_upgrade = st.session_state.coin >= cost
-
-            if st.button(f"⬆️ Lv.{next_level} 강화 시도", key="upgrade_rod_btn", disabled=not can_upgrade):
-                if can_upgrade:
-                    st.session_state.coin -= cost
-                    
-                    if random.random() < rate:
-                        st.session_state.rod_level += 1
-                        st.success(f"🎉 **강화 성공!** 현재 레벨: Lv.{st.session_state.rod_level}")
-                        st.balloons()
-                    else:
-                        st.error(f"❌ 강화 실패! 코인 {cost:,} 소모. 현재 레벨: Lv.{st.session_state.rod_level}")
+            
+            # 폼 내부에서 강화 버튼 처리
+            with st.form("rod_upgrade_form"):
+                
+                upgrade_submitted = st.form_submit_button(
+                    f"⬆️ Lv.{next_level} 강화 시도", 
+                    disabled=not can_upgrade,
+                    type="primary"
+                )
+            
+                if upgrade_submitted:
+                    if can_upgrade:
+                        st.session_state.coin -= cost
                         
-                    st.rerun() 
-                    
-                else:
-                    st.error("❗ 코인 부족!")
-                    st.rerun()
+                        if random.random() < rate:
+                            st.session_state.rod_level += 1
+                            st.success(f"🎉 **강화 성공!** 현재 레벨: Lv.{st.session_state.rod_level}")
+                            st.balloons()
+                        else:
+                            st.error(f"❌ 강화 실패! 코인 {cost:,} 소모. 현재 레벨: Lv.{st.session_state.rod_level}")
+                            
+                        st.rerun() 
+                        
+                    else:
+                        st.error("❗ 코인 부족!")
+                        st.rerun()
         else:
             st.info(f"최고 레벨 Lv.{current_level}입니다! 더 이상 강화할 수 없습니다.")
 
@@ -719,22 +728,26 @@ def shop_interface():
 
         st.write(f"**🧵 떡밥:** **{bait_price:,} 코인/개** (기본 {BAIT_BASE_PRICE} + 물가 상승 {increase} 코인)")
         st.caption(f"최대 가격은 {BAIT_BASE_PRICE + MAX_BAIT_INCREASE:,} 코인입니다.")
-
-        purchase_qty = st.number_input("구매할 떡밥 개수", min_value=1, value=1, step=1, key="bait_qty")
-        total_cost = purchase_qty * bait_price
         
-        st.write(f"**총 비용:** **{total_cost:,}** 코인")
+        with st.form("bait_purchase_form"):
+            purchase_qty = st.number_input("구매할 떡밥 개수", min_value=1, value=1, step=1, key="bait_qty_form")
+            total_cost = purchase_qty * bait_price
+            st.write(f"**총 비용:** **{total_cost:,}** 코인")
+            can_purchase = st.session_state.coin >= total_cost
 
-        can_purchase = st.session_state.coin >= total_cost
+            purchase_submitted = st.form_submit_button(
+                f"✅ 떡밥 {purchase_qty}개 구매", 
+                disabled=not can_purchase
+            )
 
-        if st.button(f"✅ 떡밥 {purchase_qty}개 구매", key="buy_bait_multi", disabled=not can_purchase):
-            if can_purchase:
-                st.session_state.coin = int(st.session_state.coin - total_cost)
-                st.session_state.bait += purchase_qty
-                st.success(f"떡밥 {purchase_qty}개 구매 완료! (-{total_cost:,} 코인)")
-                st.rerun()
-            else:
-                st.error("❗ 코인 부족!")
+            if purchase_submitted:
+                if can_purchase:
+                    st.session_state.coin = int(st.session_state.coin - total_cost)
+                    st.session_state.bait += purchase_qty
+                    st.success(f"떡밥 {purchase_qty}개 구매 완료! (-{total_cost:,} 코인)")
+                    st.rerun()
+                else:
+                    st.error("❗ 코인 부족!")
         
         st.markdown("---")
         
@@ -759,17 +772,21 @@ def shop_interface():
             if total_sell_coin_general > 0:
                 st.write(f"**판매 예상 수입:** **{total_sell_coin_general:,}** 코인")
                 
-                if st.button("💰 일반 물고기 전체 판매", key="sell_general_btn"):
-                    
-                    total_items_sold = 0
-                    for item, qty in sellable_items_general:
-                        total_items_sold += qty
-                        for _ in range(qty):
-                            st.session_state.inventory.remove(item)
-                            
-                    st.session_state.coin = int(st.session_state.coin + total_sell_coin_general)
-                    st.success(f"총 {total_items_sold}마리 판매 완료! +{total_sell_coin_general:,} 코인")
-                    st.rerun()
+                # 판매 버튼도 폼으로 감싸서 독립적인 제출을 보장
+                with st.form("sell_general_form"):
+                    sell_general_submitted = st.form_submit_button("💰 일반 물고기 전체 판매", type="primary")
+
+                    if sell_general_submitted:
+                        
+                        total_items_sold = 0
+                        for item, qty in sellable_items_general:
+                            total_items_sold += qty
+                            for _ in range(qty):
+                                st.session_state.inventory.remove(item)
+                                
+                        st.session_state.coin = int(st.session_state.coin + total_sell_coin_general)
+                        st.success(f"총 {total_items_sold}마리 판매 완료! +{total_sell_coin_general:,} 코인")
+                        st.rerun()
             else:
                 st.info("현재 일반 물고기가 없습니다.")
                 
@@ -794,17 +811,24 @@ def shop_interface():
             else:
                 st.caption("현재 특수/고가치 아이템이 없습니다.")
                         
-            if st.button("💎 특수/고가치 아이템 전체 판매", key="sell_special_btn", disabled=total_sell_coin_special == 0, type="secondary"):
+            with st.form("sell_special_form"):
+                sell_special_submitted = st.form_submit_button(
+                    "💎 특수/고가치 아이템 전체 판매", 
+                    disabled=total_sell_coin_special == 0, 
+                    type="secondary"
+                )
                 
-                total_items_sold = 0
-                for item, qty in sellable_items_special:
-                    total_items_sold += qty
-                    for _ in range(qty):
-                        st.session_state.inventory.remove(item)
-                        
-                st.session_state.coin = int(st.session_state.coin + total_sell_coin_special)
-                st.success(f"총 {total_items_sold}개 판매 완료! +{total_sell_coin_special:,} 코인")
-                st.rerun()
+                if sell_special_submitted:
+                    
+                    total_items_sold = 0
+                    for item, qty in sellable_items_special:
+                        total_items_sold += qty
+                        for _ in range(qty):
+                            st.session_state.inventory.remove(item)
+                            
+                    st.session_state.coin = int(st.session_state.coin + total_sell_coin_special)
+                    st.success(f"총 {total_items_sold}개 판매 완료! +{total_sell_coin_special:,} 코인")
+                    st.rerun()
 
             st.markdown("---")
             
@@ -812,34 +836,38 @@ def shop_interface():
             st.markdown("##### 🖐️ 수동 판매 (선택)")
 
             available_for_sell = list(counts.keys())
+            
+            with st.form("sell_manual_form"):
 
-            selected = st.multiselect(
-                "판매할 아이템 선택 (수동)",
-                available_for_sell,
-                format_func=lambda x: f"{x} ({price_map.get(x,'N/A'):,} 코인) x {counts.get(x, 0)}",
-                key="sell_select"
-            )
+                selected = st.multiselect(
+                    "판매할 아이템 선택 (수동)",
+                    available_for_sell,
+                    format_func=lambda x: f"{x} ({price_map.get(x,'N/A'):,} 코인) x {counts.get(x, 0)}",
+                    key="sell_select_form" # 폼 안에 있으므로 키 변경
+                )
+                
+                sell_manual_submitted = st.form_submit_button("선택된 아이템 판매")
 
-            if st.button("선택된 아이템 판매", key="sell_btn"):
-                counts = Counter(st.session_state.inventory)
-                total = 0
-                items_sold_count = 0
+                if sell_manual_submitted:
+                    counts = Counter(st.session_state.inventory)
+                    total = 0
+                    items_sold_count = 0
 
-                for item in selected: 
-                    sell_qty = counts[item] 
-                    items_sold_count += sell_qty
-                    
-                    for _ in range(sell_qty):
-                        st.session_state.inventory.remove(item)
+                    for item in selected: 
+                        sell_qty = counts[item] 
+                        items_sold_count += sell_qty
                         
-                    total += price_map.get(item, 0) * sell_qty
+                        for _ in range(sell_qty):
+                            st.session_state.inventory.remove(item)
+                            
+                        total += price_map.get(item, 0) * sell_qty
 
-                if total > 0:
-                    st.session_state.coin = int(st.session_state.coin + total)
-                    st.success(f"{items_sold_count}개 판매 완료! +{total:,} 코인")
-                    st.rerun()
-                else:
-                    st.warning("선택된 아이템이 없습니다.")
+                    if total > 0:
+                        st.session_state.coin = int(st.session_state.coin + total)
+                        st.success(f"{items_sold_count}개 판매 완료! +{total:,} 코인")
+                        st.rerun()
+                    else:
+                        st.warning("선택된 아이템이 없습니다.")
         else:
             st.warning("판매할 아이템이 없습니다.")
     
@@ -870,35 +898,39 @@ st.write(f"**제작 가능 물고기 총합:** {total_craftable_fish}마리")
 st.write(f"**최대 제작 가능 떡밥:** **{max_bait_to_craft}개**")
 
 if max_bait_to_craft > 0:
-    craft_qty = st.number_input("제작할 떡밥 개수", min_value=1, max_value=max_bait_to_craft, value=min(1, max_bait_to_craft), step=1, key="craft_bait_qty")
     
-    if st.button(f"✅ 떡밥 {craft_qty}개 제작", key="craft_bait_btn"):
-        fish_needed = craft_qty * BAIT_CRAFT_FISH_NEEDED
-        fish_to_consume = {}
-        consumed_count = 0
+    with st.form("bait_craft_form"):
+        craft_qty = st.number_input("제작할 떡밥 개수", min_value=1, max_value=max_bait_to_craft, value=min(1, max_bait_to_craft), step=1, key="craft_bait_qty_form")
         
-        # 수량이 많은 순으로 정렬하여 소모
-        sorted_inventory = sorted([
-            (f, counts[f]) for f in craft_able_fish_list 
-            if counts[f] > 0
-        ], key=lambda item: item[1], reverse=True)
+        craft_submitted = st.form_submit_button(f"✅ 떡밥 {craft_qty}개 제작")
         
-        for fish, qty in sorted_inventory:
-            if consumed_count < fish_needed:
-                consume = min(qty, fish_needed - consumed_count)
-                fish_to_consume[fish] = consume
-                consumed_count += consume
-
-        if consumed_count == fish_needed:
-            for fish, qty in fish_to_consume.items():
-                for _ in range(qty):
-                    st.session_state.inventory.remove(fish)
+        if craft_submitted:
+            fish_needed = craft_qty * BAIT_CRAFT_FISH_NEEDED
+            fish_to_consume = {}
+            consumed_count = 0
             
-            st.session_state.bait += craft_qty
-            st.success(f"떡밥 {craft_qty}개 제작 완료! (물고기 {fish_needed}마리 소모)")
-            st.rerun()
-        else:
-            st.error("❗ 물고기 소모 로직 오류: 필요한 만큼의 물고기를 찾지 못했습니다.")
+            # 수량이 많은 순으로 정렬하여 소모
+            sorted_inventory = sorted([
+                (f, counts[f]) for f in craft_able_fish_list 
+                if counts[f] > 0
+            ], key=lambda item: item[1], reverse=True)
+            
+            for fish, qty in sorted_inventory:
+                if consumed_count < fish_needed:
+                    consume = min(qty, fish_needed - consumed_count)
+                    fish_to_consume[fish] = consume
+                    consumed_count += consume
+
+            if consumed_count == fish_needed:
+                for fish, qty in fish_to_consume.items():
+                    for _ in range(qty):
+                        st.session_state.inventory.remove(fish)
+                
+                st.session_state.bait += craft_qty
+                st.success(f"떡밥 {craft_qty}개 제작 완료! (물고기 {fish_needed}마리 소모)")
+                st.rerun()
+            else:
+                st.error("❗ 물고기 소모 로직 오류: 필요한 만큼의 물고기를 찾지 못했습니다.")
 else:
     st.info("떡밥을 제작할 물고기가 부족합니다.")
 
@@ -938,34 +970,37 @@ if selected_base_fish != "--- 선택 ---":
     
     if max_fusions > 0:
         
-        # 몇 개를 합성할지 결정
-        fusion_qty = st.number_input(
-            "제작할 대물 물고기 개수",
-            min_value=1, 
-            max_value=max_fusions, 
-            value=min(1, max_fusions), 
-            step=1, 
-            key="fusion_qty_input"
-        )
-        
-        fish_needed = fusion_qty * FUSION_COST
-        fused_fish_name = fusion_map[selected_base_fish]
-        
-        st.write(f"**필요한 {selected_base_fish} 수량:** {fish_needed}개")
-        st.write(f"**제작될 물고기:** {fused_fish_name} {fusion_qty}마리")
+        with st.form("fish_fusion_form"):
+            # 몇 개를 합성할지 결정
+            fusion_qty = st.number_input(
+                "제작할 대물 물고기 개수",
+                min_value=1, 
+                max_value=max_fusions, 
+                value=min(1, max_fusions), 
+                step=1, 
+                key="fusion_qty_input_form"
+            )
+            
+            fish_needed = fusion_qty * FUSION_COST
+            fused_fish_name = fusion_map[selected_base_fish]
+            
+            st.write(f"**필요한 {selected_base_fish} 수량:** {fish_needed}개")
+            st.write(f"**제작될 물고기:** {fused_fish_name} {fusion_qty}마리")
 
-        if st.button(f"⚛️ {fused_fish_name} {fusion_qty}개 합성", key="do_fusion_btn", type="primary"):
+            fusion_submitted = st.form_submit_button(f"⚛️ {fused_fish_name} {fusion_qty}개 합성", type="primary")
             
-            # 인벤토리에서 기본 물고기 소모
-            for _ in range(fish_needed):
-                st.session_state.inventory.remove(selected_base_fish)
+            if fusion_submitted:
                 
-            # 인벤토리에 합성 물고기 추가 및 도감 업데이트
-            for _ in range(fusion_qty):
-                catch_fish(fused_fish_name) # catch_fish 함수를 사용하여 인벤토리 추가 및 도감 업데이트
-            
-            st.success(f"🎉 **{fused_fish_name}** {fusion_qty}마리 합성 완료! ( {selected_base_fish} {fish_needed}개 소모)")
-            st.rerun()
+                # 인벤토리에서 기본 물고기 소모
+                for _ in range(fish_needed):
+                    st.session_state.inventory.remove(selected_base_fish)
+                    
+                # 인벤토리에 합성 물고기 추가 및 도감 업데이트
+                for _ in range(fusion_qty):
+                    catch_fish(fused_fish_name) # catch_fish 함수를 사용하여 인벤토리 추가 및 도감 업데이트
+                
+                st.success(f"🎉 **{fused_fish_name}** {fusion_qty}마리 합성 완료! ( {selected_base_fish} {fish_needed}개 소모)")
+                st.rerun()
 
     else:
         st.info(f"현재 **{selected_base_fish}**가 {FUSION_COST}마리 미만으로 합성할 수 없습니다.")
@@ -989,30 +1024,33 @@ st.write(f"**최대 제작 가능 지도:** **{max_map_crafts}개**")
 
 if max_map_crafts > 0:
     
-    map_craft_qty = st.number_input(
-        "제작할 완성 지도 개수",
-        min_value=1,
-        max_value=max_map_crafts,
-        value=min(1, max_map_crafts),
-        step=1,
-        key="map_craft_qty_input"
-    )
-    
-    pieces_needed = map_craft_qty * MAP_PIECE_COST
+    with st.form("map_craft_form"):
+        map_craft_qty = st.number_input(
+            "제작할 완성 지도 개수",
+            min_value=1,
+            max_value=max_map_crafts,
+            value=min(1, max_map_crafts),
+            step=1,
+            key="map_craft_qty_input_form"
+        )
+        
+        pieces_needed = map_craft_qty * MAP_PIECE_COST
 
-    if st.button(f"🧭 {full_map_name} {map_craft_qty}개 제작", key="do_map_craft_btn", type="secondary"):
+        map_submitted = st.form_submit_button(f"🧭 {full_map_name} {map_craft_qty}개 제작", type="secondary")
         
-        # 인벤토리에서 지도 조각 소모
-        for _ in range(pieces_needed):
-            st.session_state.inventory.remove(map_piece_name)
+        if map_submitted:
             
-        # 인벤토리에 완성된 지도 추가 및 도감 업데이트
-        for _ in range(map_craft_qty):
-            catch_fish(full_map_name) 
-        
-        st.success(f"🎉 **{full_map_name}** {map_craft_qty}개 제작 완료! ( {map_piece_name} {pieces_needed}개 소모)")
-        check_for_map_completion() # 지도를 완성했으므로 잃어버린 섬 해금 시도
-        st.rerun()
+            # 인벤토리에서 지도 조각 소모
+            for _ in range(pieces_needed):
+                st.session_state.inventory.remove(map_piece_name)
+                
+            # 인벤토리에 완성된 지도 추가 및 도감 업데이트
+            for _ in range(map_craft_qty):
+                catch_fish(full_map_name) 
+            
+            st.success(f"🎉 **{full_map_name}** {map_craft_qty}개 제작 완료! ( {map_piece_name} {pieces_needed}개 소모)")
+            check_for_map_completion() # 지도를 완성했으므로 잃어버린 섬 해금 시도
+            st.rerun()
 else:
     st.info(f"**{map_piece_name}**가 {MAP_PIECE_COST}개 미만으로 완성된 지도를 제작할 수 없습니다.")
 
@@ -1024,6 +1062,12 @@ st.markdown("---") # st.divider() 대체
 st.markdown('<div class="game-section" style="background-color: #f8d7da; border-color: #dc3545;">', unsafe_allow_html=True)
 st.subheader("⚠️ 게임 데이터 초기화 (모든 진행 상황 삭제)")
 st.caption("모든 코인, 물고기, 도감 및 낚싯대 레벨이 초기화됩니다. 이 작업은 되돌릴 수 없습니다.")
-if st.button("🗑️ 모든 게임 데이터 초기화", key="reset_game_data_final", type="default"):
-    reset_game_data() # 함수 호출로 초기화 및 새로고침
+
+# 폼 내부에서 st.form_submit_button 사용으로 변경
+with st.form("reset_game_form"):
+    reset_submitted = st.form_submit_button("🗑️ 모든 게임 데이터 초기화 (되돌릴 수 없음)", type="default")
+    
+    if reset_submitted:
+        reset_game_data() # 함수 호출로 초기화 및 새로고침
+
 st.markdown('</div>', unsafe_allow_html=True)
