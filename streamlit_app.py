@@ -266,7 +266,7 @@ def check_for_map_completion():
 def update_bait_price():
     """
     이 함수는 더 이상 가격을 올리지 않습니다. 
-    가격은 상점 섹션에서 사용자가 직접 '갱신'합니다.
+    가격은 상점 섹션에서 구매 시 자동으로 갱신됩니다.
     """
     pass
 
@@ -719,71 +719,54 @@ def shop_interface():
 
         st.markdown("---")
         
-        # 📌📌📌 1. 떡밥 가격 설정/갱신 섹션 (사용자가 원하는 가격으로 영구 설정) 📌📌📌
-        st.markdown("### 💰 떡밥 가격 설정/갱신")
-        
+        # 📌📌📌 떡밥 구매 및 자동 가격 인상 섹션 📌📌📌
+        st.markdown("### 🛒 떡밥 구매 (구매 수량만큼 가격 자동 인상)")
+
+        # 갱신된 가격을 가져옴
         current_bait_price = st.session_state.bait_price
         
-        st.write(f"**현재 떡밥 개당 가격:** **{current_bait_price:,} 코인**")
-        st.caption("새로운 가격을 입력하고 버튼을 누르면 다음 떡밥의 **새로운 기본 가격**이 영구적으로 갱신됩니다.")
+        st.write(f"**🧵 현재 떡밥 개당 가격:** **{current_bait_price:,} 코인**")
+        st.caption("⚠️ **구매할 떡밥 개수(N)**를 입력하고 구매하면, 다음 떡밥의 **새로운 개당 가격**은 `현재 가격 X N`으로 **자동 인상**됩니다.")
         
-        with st.form("bait_price_update_form"):
-            
-            # 사용자가 원하는 새로운 떡밥 가격을 입력
-            new_price = st.number_input(
-                "새로운 떡밥 개당 가격", 
-                min_value=1, 
-                value=current_bait_price,
-                step=1, 
-                key="new_price_input"
-            )
-            
-            price_update_submitted = st.form_submit_button("🔄 떡밥 가격 영구 갱신", type="secondary")
-            
-            if price_update_submitted:
-                if new_price != current_bait_price:
-                    # 세션 상태의 기본 가격을 새 가격으로 업데이트
-                    st.session_state.bait_price = new_price
-                    st.toast(f"✅ 떡밥 개당 가격이 **{new_price:,} 코인**으로 갱신되었습니다!", icon='💰')
-                    st.rerun()
-                else:
-                    st.warning("가격이 이전과 동일합니다.")
-
-        st.markdown("---")
-
-        # 📌📌📌 2. 떡밥 구매 섹션 (갱신된 가격으로 구매) 📌📌📌
-        st.markdown("### 🛒 떡밥 구매")
-
-        # 갱신된 가격을 다시 가져옴
-        bait_price_for_purchase = st.session_state.bait_price
-        st.write(f"**🧵 떡밥 (개당 가격):** **{bait_price_for_purchase:,} 코인**")
-
         with st.form("bait_purchase_form_final"):
+            # purchase_qty는 구매 수량이자 가격 인상 배수로 사용됩니다.
             purchase_qty = st.number_input(
-                "구매할 떡밥 개수", 
+                "구매할 떡밥 개수 (가격 인상 배수)", 
                 min_value=1, 
                 value=1, 
                 step=1, 
                 key="bait_qty_form_final"
             )
             
-            # 총 비용 계산: (갱신된 가격) * 구매 수량
-            total_cost = purchase_qty * bait_price_for_purchase
+            # 다음 갱신될 가격 (Total Cost와는 다름, 다음 라운드 가격임)
+            next_bait_price = current_bait_price * purchase_qty
+            
+            # 총 비용 계산: (현재 가격) * 구매 수량
+            total_cost = current_bait_price * purchase_qty
             
             st.write(f"**총 비용:** **{total_cost:,}** 코인")
+            st.write(f"**다음 떡밥 개당 가격:** **{next_bait_price:,}** 코인으로 인상 예정")
+            
             can_purchase = st.session_state.coin >= total_cost
 
             purchase_submitted = st.form_submit_button(
-                f"✅ 떡밥 {purchase_qty}개 구매", 
+                f"✅ 떡밥 {purchase_qty}개 구매 및 가격 인상", 
                 disabled=not can_purchase,
                 type="primary"
             )
 
             if purchase_submitted:
                 if can_purchase:
+                    # 1. 코인 소모
                     st.session_state.coin = int(st.session_state.coin - total_cost)
+                    
+                    # 2. 떡밥 수량 추가
                     st.session_state.bait += purchase_qty
-                    st.success(f"떡밥 {purchase_qty}개 구매 완료! (-{total_cost:,} 코인)")
+                    
+                    # 3. 📌 떡밥 기본 가격 영구 인상 (자동 갱신)
+                    st.session_state.bait_price = next_bait_price
+                    
+                    st.success(f"떡밥 {purchase_qty}개 구매 완료! (개당 가격 **{next_bait_price:,}** 코인으로 인상됨)")
                     st.rerun() 
                 else:
                     st.error("❗ 코인 부족!")
