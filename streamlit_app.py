@@ -111,11 +111,10 @@ fish_prob = {
 fish_list = list(fish_prob.keys())
 fish_weights = list(fish_prob.values())
 
-# 🎣 가격 인하 계수 정의 (물고기 판매 가격 70% 인하 - 0.6 -> 0.3으로 변경)
+# 🎣 가격 인하 계수 정의 (물고기 판매 가격 70% 인하)
 PRICE_DEFLATION_FACTOR = 0.3 
 
 # 가격 계산 로직: 희귀도에 따라 가격 차별화 후 인하 계수 적용
-# 가격은 이제 확률(가중치)의 역수에 비례하도록 조정
 # 가중치가 낮을수록 (희귀할수록) 가격이 높아지도록 계산
 price_map = {
     # 가중치 15(흔함)부터 2(매우 희귀)까지의 분포를 활용하여 가격 책정
@@ -277,8 +276,10 @@ def update_bait_price():
     current_increase = shop_items["떡밥"]["price_increase"] 
 
     if new_increase > current_increase:
+        # 이 함수가 호출될 때 가격 변동이 감지되면 토스트 메시지 출력
         st.toast(f"💰 물가 상승! 떡밥 가격 +{new_increase - current_increase} 코인", icon='📈')
 
+    # 세션 상태에 저장된 값이 아닌, 전역 shop_items 딕셔너리를 업데이트
     shop_items["떡밥"]["price"] = BAIT_BASE_PRICE + new_increase 
     shop_items["떡밥"]["price_increase"] = new_increase 
 
@@ -440,7 +441,7 @@ def fishing_batch_run():
         event_summary = random_event(event_rate, location)
         total_coin_event_bonus += event_summary['coin'] + event_summary['special_bonus']
         
-    update_bait_price() 
+    update_bait_price() # 물가 상승 체크 및 업데이트
     
     st.markdown(f"### 🎉 **[전체 낚시 {bait_used}회] 결과**")
     st.info(f"**📍 낚시터:** {location}")
@@ -679,6 +680,9 @@ def shop_interface():
     st.markdown('<div class="game-section">', unsafe_allow_html=True)
     st.subheader("🏪 상점")
     
+    # 떡밥 가격을 포함한 상점 정보 갱신 (물가 상승 반영)
+    update_bait_price()
+    
     if st.button("🛒 상점 열기/닫기", key="toggle_shop"):
         st.session_state.shop_open = not st.session_state.shop_open
         st.rerun() 
@@ -736,7 +740,7 @@ def shop_interface():
         # --- 아이템 구매 (떡밥) ---
         st.markdown("### 🛒 떡밥 구매")
         
-        update_bait_price() 
+        # update_bait_price()는 상점 열 때 이미 호출됨
         bait_item = shop_items["떡밥"]
         bait_price = bait_item["price"]
         increase = bait_item["price_increase"]
@@ -760,7 +764,8 @@ def shop_interface():
                     st.session_state.coin = int(st.session_state.coin - total_cost)
                     st.session_state.bait += purchase_qty
                     st.success(f"떡밥 {purchase_qty}개 구매 완료! (-{total_cost:,} 코인)")
-                    st.rerun()
+                    # 떡밥 구매 후 바로 갱신된 떡밥 가격을 보여주기 위해 rerun
+                    st.rerun() 
                 else:
                     st.error("❗ 코인 부족!")
         
