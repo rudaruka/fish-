@@ -740,7 +740,6 @@ def shop_interface():
         # --- 아이템 구매 (떡밥) ---
         st.markdown("### 🛒 떡밥 구매")
         
-        # update_bait_price()는 상점 열 때 이미 호출됨
         bait_item = shop_items["떡밥"]
         bait_price = bait_item["price"]
         increase = bait_item["price_increase"]
@@ -748,6 +747,11 @@ def shop_interface():
         st.write(f"**🧵 떡밥:** **{bait_price:,} 코인/개** (기본 {BAIT_BASE_PRICE} + 물가 상승 {increase} 코인)")
         st.caption(f"최대 가격은 {BAIT_BASE_PRICE + MAX_BAIT_INCREASE:,} 코인입니다.")
         
+        # 📌📌📌 떡밥 가격 갱신 버튼 추가 📌📌📌
+        if st.button("🔄 현재 떡밥 가격 갱신", key="manual_bait_refresh"):
+            st.toast("💰 떡밥 가격이 갱신되었습니다.", icon='✅')
+            st.rerun() 
+            
         with st.form("bait_purchase_form"):
             purchase_qty = st.number_input("구매할 떡밥 개수", min_value=1, value=1, step=1, key="bait_qty_form")
             total_cost = purchase_qty * bait_price
@@ -764,7 +768,6 @@ def shop_interface():
                     st.session_state.coin = int(st.session_state.coin - total_cost)
                     st.session_state.bait += purchase_qty
                     st.success(f"떡밥 {purchase_qty}개 구매 완료! (-{total_cost:,} 코인)")
-                    # 떡밥 구매 후 바로 갱신된 떡밥 가격을 보여주기 위해 rerun
                     st.rerun() 
                 else:
                     st.error("❗ 코인 부족!")
