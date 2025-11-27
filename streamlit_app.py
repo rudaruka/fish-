@@ -726,7 +726,7 @@ def shop_interface():
         current_bait_price = st.session_state.bait_price
         
         st.write(f"**🧵 현재 떡밥 개당 가격:** **{current_bait_price:,} 코인**")
-        st.caption("⚠️ **구매할 떡밥 개수(N)**를 입력하고 구매하면, 다음 떡밥의 **새로운 개당 가격**은 `현재 가격 X N`으로 **자동 인상**됩니다.")
+        st.caption("⚠️ 구매하시려는 수를 입력 후, 버튼을 누르시고 가격을 확인하세요! 확인 하신 후 한번 더 누르시면 구매됩니다!")
         
         with st.form("bait_purchase_form_final"):
             # purchase_qty는 구매 수량이자 가격 인상 배수로 사용됩니다.
