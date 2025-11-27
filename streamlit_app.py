@@ -109,7 +109,7 @@ fish_prob = {
     "암흑고래수리" : 0.2, "화염비늘룡어" : 0.2, "태풍포식상어" : 0.2, "얼음유령해마" : 0.2, "심해철갑괴치" : 0.2,
 
     # 😂 코믹 물고기 (prob 0.1) - "전설의 해역" 에서 낮은 확률로 등장 (4종)
-    "현이 물고기" : 0.1, "스노 물고기" : 0.1, "위키 물고기" : 0.1, "루루 물고기" : 0.1
+    "현 이 물고기" : 0.1, "스노 물고기" : 0.1, "위키 물고기" : 0.1, "루루 물고기" : 0.1
 }
 
 fish_list = list(fish_prob.keys())
@@ -157,7 +157,7 @@ ROD_UPGRADE_COSTS = {
 SPECIAL_ITEMS = ["오래된 지도 조각", "완성된 오래된 지도"]
 FUSED_FISH = list(fusion_map.values())
 MONSTER_FISH = ["암흑고래수리", "화염비늘룡어", "태풍포식상어", "얼음유령해마", "심해철갑괴치"]
-COMIC_FISH = ["현이 물고기", "스노 물고기", "위키 물고기", "루루 물고기"]
+COMIC_FISH = ["현 이 물고기", "스노 물고기", "위키 물고기", "루루 물고기"]
 
 # 일반 물고기 정의 (괴수, 코믹, 특수, 합성 물고기를 제외한 나머지)
 EXCLUDED_TYPES = set(MONSTER_FISH) | set(COMIC_FISH) | set(SPECIAL_ITEMS) | set(FUSED_FISH)
@@ -178,28 +178,32 @@ BAIT_CRAFT_FISH_NEEDED = 2 # 떡밥 제작에 필요한 물고기 개수
 
 
 # ================= 1. 세션 초기화 =================
-def initialize_session_state():
-    # 초기 코인 지급
-    defaults = {
-        "coin": 1000, # 초기 코인을 1000으로 시작
-        "inventory": [],
-        "shop_open": False,
-        "inventory_open": False, 
-        "fishbook_open": False, 
-        "location": "강가",
-        "location_selector": "강가",
-        "rod_level": 0,
-        "bait": 4, 
-        "fishbook_complete": False,
-        "legendary_unlocked": False,
-        "lost_island_unlocked": False,
-        "total_fish_caught": 0, # 물가 상승을 위한 총 낚시 마릿수
-    }
 
+# 🚨 수정: 기본값 딕셔너리를 함수 외부로 분리 (초기화 시 재사용하기 위함)
+DEFAULT_STATE = {
+    "coin": 1000, # 초기 코인을 1000으로 시작
+    "inventory": [],
+    "shop_open": False,
+    "inventory_open": False, 
+    "fishbook_open": False, 
+    "location": "강가",
+    "location_selector": "강가",
+    "rod_level": 0,
+    "bait": 4, 
+    "fishbook_complete": False,
+    "legendary_unlocked": False,
+    "lost_island_unlocked": False,
+    "total_fish_caught": 0, # 물가 상승을 위한 총 낚시 마릿수
+}
+
+def initialize_session_state():
+    """세션 상태를 초기화하거나, 이미 존재하는 경우 유지합니다."""
+
+    # fishbook은 set으로 특별히 초기화
     if "fishbook" not in st.session_state or not isinstance(st.session_state.fishbook, set):
         st.session_state.fishbook = set()
 
-    for key, default_value in defaults.items():
+    for key, default_value in DEFAULT_STATE.items():
         if key not in st.session_state:
             st.session_state[key] = default_value
     
@@ -262,10 +266,7 @@ def update_bait_price():
 
 def random_event(event_rate, location):
     """랜덤 이벤트를 발생시키고 결과를 요약 딕셔너리로 반환합니다."""
-    summary = {
-        'coin': 0, 'bonus_fish': [], 'lost_fish': [], 
-        'map_pieces': 0, 'special_bonus': 0, 'event_message': None
-    }
+    summary = {'coin': 0, 'bonus_fish': [], 'lost_fish': [], 'map_pieces': 0, 'special_bonus': 0, 'event_message': None}
     
     if random.random() < event_rate: 
         event = random.randint(1, 6) # 이벤트 1~6까지로 확장
@@ -420,7 +421,7 @@ def fishing_batch_run():
     # 위치별 가중치 및 이벤트 확률 계산
     weights = get_fishing_weights()
     location = st.session_state.location
-    event_rate = 0.15 if location in ["희귀 낚시터", "전설의 해역", "잃어버린 섬"] else 0.1
+    event_rate = 0.15 if location in ["전설의 해역", "잃어버린 섬", "희귀 낚시터"] else 0.1
     
     # 배치 낚시 실행
     for _ in range(bait_used):
@@ -434,7 +435,6 @@ def fishing_batch_run():
         event_summary = random_event(event_rate, location)
         
         # 이벤트 결과 누적
-        # 코인 손실 이벤트는 배치 낚시에서 무시 (랜덤 이벤트 함수에서 이미 처리되지만, 재확인)
         total_coin_event_bonus += event_summary['coin'] + event_summary['special_bonus']
         
     # 물가 상승 체크
@@ -691,7 +691,7 @@ with fishbook_col:
         render_fishbook_list("☣️ 괴수 물고기", MONSTER_FISH)
             
         # 🚨 3. 😂 코믹 물고기 
-        render_fishbook_list("😂 코믹 물고기 (가장 낮은 확률)", COMIC_FISH)
+        render_fishbook_list("😂 코믹 물고기", COMIC_FISH)
             
         # 4. 🧪 합성 물고기 
         render_fishbook_list("🧪 합성 물고기", FUSED_FISH)
@@ -1051,12 +1051,17 @@ st.divider()
 st.markdown('<div class="game-section">', unsafe_allow_html=True)
 st.subheader("⚙️ 게임 초기화")
 
+# 🚨 수정된 안전 초기화 로직
 if st.button("🚨 모든 데이터 초기화 (되돌릴 수 없음)", type="danger", key="reset_game_btn"):
-    # 세션 상태의 모든 키를 삭제하여 초기 상태로 되돌립니다.
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
     
-    st.success("게임 데이터가 완전히 초기화되었습니다. 페이지를 새로고침합니다.")
-    st.rerun()
+    # DEFAULT_STATE에 정의된 기본값으로 세션 변수를 덮어씁니다.
+    for key, value in DEFAULT_STATE.items():
+        st.session_state[key] = value
+        
+    # fishbook은 빈 set으로 초기화
+    st.session_state.fishbook = set()
+    
+    st.success("게임 데이터가 완전히 초기화되었습니다. 상단의 **낚시하기** 버튼을 다시 누르거나, 페이지를 새로고침하여 초기 상태로 돌아갈 수 있습니다.")
+    # st.rerun() 호출 제거
 
 st.markdown('</div>', unsafe_allow_html=True)
