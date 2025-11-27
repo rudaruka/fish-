@@ -876,7 +876,7 @@ def shop_interface():
 shop_interface()
 
 # ================= 🔧 떡밥 제작 및 아이템 합성 섹션 =================
-st.markdown("---") # st.divider() 대체
+st.markdown("---")
 st.markdown('<div class="game-section">', unsafe_allow_html=True)
 st.subheader("🧵 떡밥 제작 및 아이템 합성")
 st.caption(f"물고기 **{BAIT_CRAFT_FISH_NEEDED}마리** = 떡밥 1개 (합성, 괴수, 코믹, 지도 조각 제외)")
@@ -884,128 +884,91 @@ st.markdown("---")
 
 counts = Counter(st.session_state.inventory)
 
-# --- 1. 떡밥 제작 (안정화 로직 적용) ---
+# --- 떡밥 제작 ---
 st.markdown("### 🎣 떡밥 제작")
-
-# 떡밥 제작에 사용 가능한 물고기 목록 정의
 craft_exclusion = set(FUSED_FISH) | set(SPECIAL_ITEMS) | set(MONSTER_FISH) | set(COMIC_FISH)
-craft_able_fish_list = [f for f in NORMAL_FISH if f not in craft_exclusion] 
-
+craft_able_fish_list = [f for f in NORMAL_FISH if f not in craft_exclusion]
 total_craftable_fish = sum(counts.get(f, 0) for f in craft_able_fish_list)
 max_bait_to_craft = total_craftable_fish // BAIT_CRAFT_FISH_NEEDED
 
-st.write(f"**제작 가능 물고기 총합:** {total_craftable_fish}마리")
-st.write(f"**최대 제작 가능 떡밥:** **{max_bait_to_craft}개**")
+st.write(f"**제작 가능 떡밥 수:** {max_bait_to_craft}개")
 
-if max_bait_to_craft > 0:
-    
-    with st.form("bait_craft_form"):
-        craft_qty = st.number_input("제작할 떡밥 개수", min_value=1, max_value=max_bait_to_craft, value=min(1, max_bait_to_craft), step=1, key="craft_bait_qty_form")
-        
-        craft_submitted = st.form_submit_button(f"✅ 떡밥 {craft_qty}개 제작")
-        
-        if craft_submitted:
-            fish_needed = craft_qty * BAIT_CRAFT_FISH_NEEDED
-            fish_to_consume = {}
-            consumed_count = 0
-            
-            # 수량이 많은 순으로 정렬하여 소모
-            sorted_inventory = sorted([
-                (f, counts[f]) for f in craft_able_fish_list 
-                if counts[f] > 0
-            ], key=lambda item: item[1], reverse=True)
-            
-            for fish, qty in sorted_inventory:
-                if consumed_count < fish_needed:
-                    consume = min(qty, fish_needed - consumed_count)
-                    fish_to_consume[fish] = consume
-                    consumed_count += consume
+# max_value가 0일 때 오류를 방지하기 위해 max_value를 1로 설정하거나, max_bait_to_craft를 사용
+with st.form("craft_bait_form_2"): 
+    craft_qty = st.number_input(
+        "제작할 떡밥 개수", 
+        min_value=1, 
+        max_value=max_bait_to_craft if max_bait_to_craft > 0 else 1, 
+        value=1, 
+        step=1,
+        key="craft_qty_input_2"
+    )
+    craft_submitted = st.form_submit_button("🧵 떡밥 제작", disabled=max_bait_to_craft == 0)
 
-            if consumed_count == fish_needed:
-                for fish, qty in fish_to_consume.items():
-                    for _ in range(qty):
-                        st.session_state.inventory.remove(fish)
+    if craft_submitted:
+        if craft_qty > 0 and craft_qty <= max_bait_to_craft:
+            used_fish_count = 0
+            
+            # 인벤토리에서 물고기 제거 로직 (제공된 로직 사용)
+            for f in craft_able_fish_list:
+                while counts.get(f,0) > 0 and used_fish_count < craft_qty * BAIT_CRAFT_FISH_NEEDED:
+                    # 실제 인벤토리에서 제거
+                    st.session_state.inventory.remove(f) 
+                    counts[f] -= 1 # 임시 카운터 업데이트
+                    used_fish_count += 1
+            
+            st.session_state.bait += craft_qty
+            st.success(f"🎉 떡밥 {craft_qty}개 제작 완료!")
+            st.rerun()
+        else:
+            st.error("❗ 제작할 수 없는 개수입니다.")
+
+# --- 아이템 합성 ---
+st.markdown("---")
+st.markdown("### 🧪 아이템 합성")
+st.caption("특정 물고기 **2마리** = 합성된 물고기 1개 (합성 가능 물고기만 해당)")
+
+FUSION_COST_NEW = 2 # 새로운 합성 비용 (2마리)
+
+fusion_options = [f for f in fusion_map.keys() if counts.get(f,0) >= FUSION_COST_NEW]
+
+if fusion_options:
+    with st.form("fusion_form_2"):
+        selected_fish = st.selectbox("합성할 물고기 선택", fusion_options, key="fusion_select_2")
+        
+        # 선택된 물고기의 최대 합성 가능 횟수 계산
+        max_fusion_for_selected = counts.get(selected_fish, 0) // FUSION_COST_NEW
+        
+        fusion_count = st.number_input(
+            "합성할 횟수", 
+            min_value=1, 
+            max_value=max_fusion_for_selected, 
+            value=min(1, max_fusion_for_selected), 
+            step=1, 
+            key="fusion_count_2"
+        )
+        
+        fusion_submitted = st.form_submit_button(f"🧪 {fusion_count}회 합성 시도")
+
+        if fusion_submitted:
+            fish_to_consume = fusion_count * FUSION_COST_NEW
+            fused_result = fusion_map[selected_fish]
+
+            if counts.get(selected_fish,0) >= fish_to_consume:
+                for _ in range(fish_to_consume):
+                    st.session_state.inventory.remove(selected_fish)
                 
-                st.session_state.bait += craft_qty
-                st.success(f"떡밥 {craft_qty}개 제작 완료! (물고기 {fish_needed}마리 소모)")
+                for _ in range(fusion_count):
+                    catch_fish(fused_result)
+                
+                st.success(f"🎉 {selected_fish} {fish_to_consume}마리 → {fused_result} {fusion_count}마리 합성 성공!")
                 st.rerun()
             else:
-                st.error("❗ 물고기 소모 로직 오류: 필요한 만큼의 물고기를 찾지 못했습니다.")
+                st.error("❗ 해당 물고기 수량 부족")
 else:
-    st.info("떡밥을 제작할 물고기가 부족합니다.")
+    st.info("합성 가능한 물고기가 없습니다.")
 
-
-st.markdown("---")
-
-# --- 2. 물고기 합성 (일반 -> 대물) ---
-st.markdown("### 🧪 물고기 합성 (5마리 -> 1마리)")
-st.caption("일반 물고기 5마리를 모아 대물 물고기 1마리로 합성합니다.")
-
-FUSION_COST = 5
-fusible_base_fish = [
-    fish for fish, fused in fusion_map.items()
-]
-
-# 합성 목록을 한 줄로 표시
-fusion_options_display = " | ".join([
-    f"**{base}** ({counts.get(base, 0)}개) -> **{fusion_map[base]}**"
-    for base in fusible_base_fish
-])
-st.caption(f"합성 가능 품목: {fusion_options_display}")
-
-
-# 합성할 물고기 선택
-selected_base_fish = st.selectbox(
-    "합성할 물고기 선택 (5개 필요)",
-    options=["--- 선택 ---"] + fusible_base_fish,
-    key="select_fusion_base"
-)
-
-if selected_base_fish != "--- 선택 ---":
-    
-    base_qty = counts.get(selected_base_fish, 0)
-    
-    # 최대 합성 가능 개수
-    max_fusions = base_qty // FUSION_COST
-    
-    if max_fusions > 0:
-        
-        with st.form("fish_fusion_form"):
-            # 몇 개를 합성할지 결정
-            fusion_qty = st.number_input(
-                "제작할 대물 물고기 개수",
-                min_value=1, 
-                max_value=max_fusions, 
-                value=min(1, max_fusions), 
-                step=1, 
-                key="fusion_qty_input_form"
-            )
-            
-            fish_needed = fusion_qty * FUSION_COST
-            fused_fish_name = fusion_map[selected_base_fish]
-            
-            st.write(f"**필요한 {selected_base_fish} 수량:** {fish_needed}개")
-            st.write(f"**제작될 물고기:** {fused_fish_name} {fusion_qty}마리")
-
-            fusion_submitted = st.form_submit_button(f"⚛️ {fused_fish_name} {fusion_qty}개 합성", type="primary")
-            
-            if fusion_submitted:
-                
-                # 인벤토리에서 기본 물고기 소모
-                for _ in range(fish_needed):
-                    st.session_state.inventory.remove(selected_base_fish)
-                    
-                # 인벤토리에 합성 물고기 추가 및 도감 업데이트
-                for _ in range(fusion_qty):
-                    catch_fish(fused_fish_name) # catch_fish 함수를 사용하여 인벤토리 추가 및 도감 업데이트
-                
-                st.success(f"🎉 **{fused_fish_name}** {fusion_qty}마리 합성 완료! ( {selected_base_fish} {fish_needed}개 소모)")
-                st.rerun()
-
-    else:
-        st.info(f"현재 **{selected_base_fish}**가 {FUSION_COST}마리 미만으로 합성할 수 없습니다.")
-
-
+# 지도 조각 합성 로직은 이전 코드와 동일하게 유지
 st.markdown("---")
 
 # --- 3. 지도 조각 합성 (5조각 -> 완성된 지도) ---
@@ -1024,14 +987,14 @@ st.write(f"**최대 제작 가능 지도:** **{max_map_crafts}개**")
 
 if max_map_crafts > 0:
     
-    with st.form("map_craft_form"):
+    with st.form("map_craft_form_2"):
         map_craft_qty = st.number_input(
             "제작할 완성 지도 개수",
             min_value=1,
             max_value=max_map_crafts,
             value=min(1, max_map_crafts),
             step=1,
-            key="map_craft_qty_input_form"
+            key="map_craft_qty_input_form_2"
         )
         
         pieces_needed = map_craft_qty * MAP_PIECE_COST
@@ -1057,17 +1020,12 @@ else:
 st.markdown('</div>', unsafe_allow_html=True)
 
 
-# --- 8. 게임 초기화 섹션 (정리용 추가) ---
-st.markdown("---") # st.divider() 대체
+# ================= 🔚 게임 종료 및 초기화 버튼 =================
+st.markdown("---")
 st.markdown('<div class="game-section" style="background-color: #f8d7da; border-color: #dc3545;">', unsafe_allow_html=True)
-st.subheader("⚠️ 게임 데이터 초기화 (모든 진행 상황 삭제)")
-st.caption("모든 코인, 물고기, 도감 및 낚싯대 레벨이 초기화됩니다. 이 작업은 되돌릴 수 없습니다.")
-
-# 폼 내부에서 st.form_submit_button 사용으로 변경
-with st.form("reset_game_form"):
-    reset_submitted = st.form_submit_button("🗑️ 모든 게임 데이터 초기화 (되돌릴 수 없음)", type="default")
-    
-    if reset_submitted:
-        reset_game_data() # 함수 호출로 초기화 및 새로고침
-
+st.subheader("⚙️ 게임 설정 / 초기화")
+st.caption("모든 진행 상황이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.")
+# 일반 st.button으로 변경 (새로운 요청에 따름)
+if st.button("🗑️ 모든 게임 데이터 초기화", key="reset_game"):
+    reset_game_data()
 st.markdown('</div>', unsafe_allow_html=True)
