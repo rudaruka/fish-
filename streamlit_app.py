@@ -690,8 +690,8 @@ with fishbook_col:
         # 2. ☣️ 괴수 물고기 
         render_fishbook_list("☣️ 괴수 물고기", MONSTER_FISH)
             
-        # 🚨 3. 😂 코믹 물고기 (추가됨)
-        render_fishbook_list("😂 코믹 물고기", COMIC_FISH)
+        # 🚨 3. 😂 코믹 물고기 
+        render_fishbook_list("😂 코믹 물고기 (가장 낮은 확률)", COMIC_FISH)
             
         # 4. 🧪 합성 물고기 
         render_fishbook_list("🧪 합성 물고기", FUSED_FISH)
