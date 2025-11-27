@@ -141,6 +141,7 @@ price_map["완성된 오래된 지도"] = 50000
 
 # 🎣 떡밥 가격 상수 정의
 BAIT_BASE_PRICE = 70 # ⬅️ 떡밥 기본 가격 70 코인 적용
+BAIT_MAX_PRICE = 2000 # ⬅️ 떡밥 최대 가격 2000 코인 적용
 BAIT_CRAFT_FISH_NEEDED = 2 # 떡밥 제작에 필요한 물고기 개수
 
 shop_items = {
@@ -719,14 +720,14 @@ def shop_interface():
 
         st.markdown("---")
         
-        # 📌📌📌 떡밥 구매 및 자동 가격 인상 섹션 📌📌📌
+        # 📌📌📌 떡밥 구매 및 자동 가격 인상 섹션 (최대 가격 2,000원 제한 적용) 📌📌📌
         st.markdown("### 🛒 떡밥 구매 (구매 수량만큼 가격 자동 인상)")
 
         # 갱신된 가격을 가져옴
         current_bait_price = st.session_state.bait_price
         
         st.write(f"**🧵 현재 떡밥 개당 가격:** **{current_bait_price:,} 코인**")
-        st.caption("⚠️ 구매하시려는 수를 입력 후, 버튼을 누르시고 가격을 확인하세요! 확인 하신 후 한번 더 누르시면 구매됩니다!")
+        st.caption(f"⚠️ **구매할 떡밥 개수(N)**를 입력하고 구매하면, 다음 떡밥의 **새로운 개당 가격**은 `현재 가격 X N`으로 **자동 인상**되지만, **최대 {BAIT_MAX_PRICE:,} 코인**을 넘을 수 없습니다.")
         
         with st.form("bait_purchase_form_final"):
             # purchase_qty는 구매 수량이자 가격 인상 배수로 사용됩니다.
@@ -738,14 +739,17 @@ def shop_interface():
                 key="bait_qty_form_final"
             )
             
-            # 다음 갱신될 가격 (Total Cost와는 다름, 다음 라운드 가격임)
-            next_bait_price = current_bait_price * purchase_qty
+            # 다음 갱신될 가격 (제한되지 않은 값)
+            next_bait_price_uncapped = current_bait_price * purchase_qty
+            
+            # 최대 가격 제한 적용
+            next_bait_price_capped = min(next_bait_price_uncapped, BAIT_MAX_PRICE)
             
             # 총 비용 계산: (현재 가격) * 구매 수량
             total_cost = current_bait_price * purchase_qty
             
             st.write(f"**총 비용:** **{total_cost:,}** 코인")
-            st.write(f"**다음 떡밥 개당 가격:** **{next_bait_price:,}** 코인으로 인상 예정")
+            st.write(f"**다음 떡밥 개당 가격:** **{next_bait_price_capped:,}** 코인으로 인상 예정 (최대: {BAIT_MAX_PRICE:,} 코인)")
             
             can_purchase = st.session_state.coin >= total_cost
 
@@ -763,10 +767,15 @@ def shop_interface():
                     # 2. 떡밥 수량 추가
                     st.session_state.bait += purchase_qty
                     
-                    # 3. 📌 떡밥 기본 가격 영구 인상 (자동 갱신)
-                    st.session_state.bait_price = next_bait_price
+                    # 3. 📌 떡밥 기본 가격 영구 인상 (자동 갱신 및 최대 가격 제한)
+                    st.session_state.bait_price = next_bait_price_capped
                     
-                    st.success(f"떡밥 {purchase_qty}개 구매 완료! (개당 가격 **{next_bait_price:,}** 코인으로 인상됨)")
+                    # 4. 성공 메시지 업데이트
+                    if next_bait_price_capped == BAIT_MAX_PRICE and next_bait_price_uncapped > BAIT_MAX_PRICE:
+                         st.success(f"떡밥 {purchase_qty}개 구매 완료! (개당 가격 **{next_bait_price_capped:,}** 코인으로 인상됨. **최대 가격({BAIT_MAX_PRICE:,} 코인) 도달**)")
+                    else:
+                        st.success(f"떡밥 {purchase_qty}개 구매 완료! (개당 가격 **{next_bait_price_capped:,}** 코인으로 인상됨)")
+                        
                     st.rerun() 
                 else:
                     st.error("❗ 코인 부족!")
