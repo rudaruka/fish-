@@ -179,7 +179,7 @@ BAIT_CRAFT_FISH_NEEDED = 2 # 떡밥 제작에 필요한 물고기 개수
 
 # ================= 1. 세션 초기화 =================
 
-# 🚨 수정: 기본값 딕셔너리를 함수 외부로 분리 (초기화 시 재사용하기 위함)
+# 🚨 기본값 딕셔너리를 함수 외부로 분리 (초기화 시 재사용하기 위함)
 DEFAULT_STATE = {
     "coin": 1000, # 초기 코인을 1000으로 시작
     "inventory": [],
@@ -1051,17 +1051,23 @@ st.divider()
 st.markdown('<div class="game-section">', unsafe_allow_html=True)
 st.subheader("⚙️ 게임 초기화")
 
-# 🚨 수정된 안전 초기화 로직
-if st.button("🚨 모든 데이터 초기화 (되돌릴 수 없음)", type="danger", key="reset_game_btn"):
+# 🚨 수정된 안전 초기화 로직: st.form을 사용하여 버튼을 격리합니다.
+with st.form(key='reset_form'):
+    st.write("모든 게임 진행 상황(코인, 인벤토리, 도감, 낚싯대 레벨 등)을 완전히 초기화합니다.")
     
-    # DEFAULT_STATE에 정의된 기본값으로 세션 변수를 덮어씁니다.
-    for key, value in DEFAULT_STATE.items():
-        st.session_state[key] = value
+    # 폼 제출 버튼을 사용하며, 클릭 시 초기화 로직이 실행됩니다.
+    reset_submitted = st.form_submit_button("🚨 모든 데이터 초기화 (되돌릴 수 없음)", type="danger")
+
+    if reset_submitted:
+        # DEFAULT_STATE에 정의된 기본값으로 세션 변수를 덮어씁니다.
+        for key, value in DEFAULT_STATE.items():
+            st.session_state[key] = value
+            
+        # fishbook은 빈 set으로 초기화
+        st.session_state.fishbook = set()
         
-    # fishbook은 빈 set으로 초기화
-    st.session_state.fishbook = set()
-    
-    st.success("게임 데이터가 완전히 초기화되었습니다. 상단의 **낚시하기** 버튼을 다시 누르거나, 페이지를 새로고침하여 초기 상태로 돌아갈 수 있습니다.")
-    # st.rerun() 호출 제거
+        # 폼 제출 후 st.success를 사용하여 사용자에게 알림
+        st.success("게임 데이터가 완전히 초기화되었습니다. 게임을 다시 시작하려면 페이지를 새로고침하거나 낚시를 진행하세요.")
+        # st.rerun()을 사용하지 않아 APIException 발생을 방지합니다.
 
 st.markdown('</div>', unsafe_allow_html=True)
