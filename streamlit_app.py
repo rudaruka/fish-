@@ -3,74 +3,253 @@ import random
 from collections import Counter
 import math
 
-# ================= 0. 페이지 설정 및 CSS 스타일링 (밝은 테마 적용) =================
+# ================= 0. 페이지 설정 및 CSS 스타일링 (모던 테마) =================
 st.set_page_config(
-    page_title="낚시터를 낚아보아요",
+    page_title="🎣 심해 낚시왕",
     layout="centered",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-# Custom CSS for a clean, light-mode theme
+# Modern CSS with gradient and animations
 st.markdown("""
 <style>
-/* Streamlit main content wide - BRIGHT THEME */
-.stApp {
-    background-color: #f8f9fa; /* Very Light Grey/Off-White */
-    color: #212529; /* Dark text color */
-}
-/* Main Title Style */
-h1 {
-    color: #007bff; /* Bright Blue for the title */
-    text-align: center;
-    border-bottom: 3px solid #007bff;
-    padding-bottom: 10px;
-    margin-bottom: 20px;
-}
-/* Subheaders Style */
-h2, h3, h4, h5, h6 {
-    color: #28a745; /* Green for section headers */
-}
-/* Divider style */
-hr {
-    border-top: 1px solid #ced4da; /* Light grey divider */
-}
-/* Section Container for visual grouping */
-.game-section {
-    border: 1px solid #adb5bd; /* Medium grey border */
-    padding: 20px;
-    border-radius: 10px;
-    margin-bottom: 20px;
-    background-color: #ffffff; /* White background for sections */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-/* Colored text for stats */
-.stat-value {
-    font-size: 1.2em;
-    font-weight: bold;
+/* Modern Color Palette */
+:root {
+    --primary: #4361ee;
+    --secondary: #3f37c9;
+    --accent: #4cc9f0;
+    --success: #4bb543;
+    --warning: #f9c74f;
+    --danger: #ef476f;
+    --light: #f8f9fa;
+    --dark: #212529;
+    --gray: #6c757d;
+    --light-gray: #e9ecef;
 }
 
-/* 🚨 도감 Grid 레이아웃 적용 (정렬 개선) */
+/* Base Styles */
+.stApp {
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+    color: var(--dark);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--primary);
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+
+h1 {
+    font-size: 2.5rem;
+    text-align: center;
+    background: linear-gradient(45deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    padding-bottom: 10px;
+    margin: 20px 0 30px;
+    position: relative;
+}
+
+h1::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    border-radius: 2px;
+}
+
+h2 {
+    color: var(--secondary);
+    font-size: 1.8rem;
+    margin-top: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--light-gray);
+}
+
+/* Section Containers */
+.game-section {
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.game-section:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Stats & Values */
+.stat-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--primary);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Buttons */
+.stButton>button {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0.5rem 1.25rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.stButton>button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* Fishbook Grid */
 .fishbook-grid {
     display: grid;
-    /* 5개의 동일한 크기 열을 만듭니다. (글자 수에 관계없이 정렬) */
-    grid-template-columns: repeat(5, 1fr); 
-    gap: 5px 0px; /* 줄 간격 5px, 열 간격 0px */
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+    margin: 1rem 0;
 }
-/* Grid 항목 스타일 */
+
 .fishbook-item {
-    font-size: 0.9em;
-    padding: 3px 5px;
-    border-radius: 3px;
-    white-space: nowrap; /* 항목이 줄 바꿈 되는 것을 방지 */
+    background: white;
+    padding: 0.75rem;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border: 1px solid rgba(0,0,0,0.05);
 }
-/* 획득한 아이템 스타일 */
+
+.fishbook-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+/* Collection Status */
 .collected {
-    font-weight: bold;
-    color: #007bff; /* 파란색으로 변경 */
+    background: rgba(67, 97, 238, 0.1);
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    font-weight: 600;
 }
-/* 미획득 아이템 스타일 */
+
 .uncollected {
-    color: #757575; /* 회색 유지 */
+    background: var(--light-gray);
+    color: var(--gray);
+    opacity: 0.7;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.05);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary);
+}
+
+/* Tooltips */
+[data-tooltip] {
+    position: relative;
+    cursor: help;
+}
+
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--dark);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .fishbook-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    }
+    
+    h1 {
+        font-size: 2rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+}
+
+/* Badges */
+.badge {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: 0.75em;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 10rem;
+    background: var(--primary);
+    color: white;
+    margin-left: 0.5rem;
+}
+
+/* Progress Bars */
+.progress-container {
+    width: 100%;
+    background-color: var(--light-gray);
+    border-radius: 10px;
+    margin: 1rem 0;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 10px;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    border-radius: 10px;
+    transition: width 0.6s ease;
 }
 </style>
 """, unsafe_allow_html=True)
